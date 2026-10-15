@@ -145,3 +145,11 @@ export const signupQuestions: SignupQuestion[] = [
  * the privacy policy describes it, so that page needs updating too.
  */
 export const metaPixelId = "1814348579981984";
+
+/**
+ * Google Tag Manager container id, used by the base snippet in BaseLayout.
+ *
+ * Empty disables it the same way as metaPixelId above: no script is written
+ * into the page at all.
+ */
+export const gtmContainerId = "GTM-MBG6K7WT";

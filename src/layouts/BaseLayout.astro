@@ -1,6 +1,6 @@
 ---
 import "../styles/global.css";
-import { metaPixelId } from "../data/config";
+import { metaPixelId, gtmContainerId } from "../data/config";
 
 interface Props {
 	/** Shown in the browser tab and in search results. */
@@ -19,6 +19,20 @@ const {
 	lang = "en",
 	dir = "ltr",
 } = Astro.props;
+
+/*
+	Google Tag Manager, base code, exactly as Google supplies it with the
+	container id substituted. Built as a string and written with set:html for
+	the same reason as the Meta Pixel snippet just below — see its comment.
+
+	Google's own install instructions put this snippet as high in <head> as
+	possible, so it loads ahead of the Meta Pixel rather than after it.
+*/
+const gtmCode = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','${gtmContainerId}');`;
 
 /*
 	Meta Pixel, base code, exactly as Meta supplies it with the id substituted.
@@ -45,6 +59,16 @@ fbq('track', 'PageView');`;
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+		{/*
+			Google Tag Manager, base code. As high in <head> as it can sit without
+			coming before charset/viewport — those two have to stay first so the
+			browser reads the page's encoding before anything else. is:inline for
+			the same reason as the Meta Pixel below: Astro would otherwise defer it
+			as a module and change when it actually runs.
+		*/}
+		{gtmContainerId && <script is:inline set:html={gtmCode} />}
+
 		<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 		<link rel="apple-touch-icon" href="/icon-180.png" />
 		<title>{title}</title>
@@ -66,6 +90,24 @@ fbq('track', 'PageView');`;
 		{metaPixelId && <script is:inline set:html={pixelCode} />}
 	</head>
 	<body>
+		{/*
+			Google Tag Manager (noscript). Google's own install instructions put
+			this as the very first thing inside <body>, ahead of everything else
+			including the Meta Pixel's own noscript fallback.
+		*/}
+		{
+			gtmContainerId && (
+				<noscript>
+					<iframe
+						src={`https://www.googletagmanager.com/ns.html?id=${gtmContainerId}`}
+						height="0"
+						width="0"
+						style="display:none;visibility:hidden"
+						title="Google Tag Manager"
+					/>
+				</noscript>
+			)
+		}
 		{
 			metaPixelId && (
 				<noscript>
