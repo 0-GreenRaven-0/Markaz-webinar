@@ -1,0 +1,59 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import EdgeDecor from "../components/EdgeDecor.astro";
+import TopTicker from "../components/TopTicker.astro";
+import Hero from "../components/Hero.astro";
+import Stats from "../components/Stats.astro";
+import Projects from "../components/Projects.astro";
+import Faq from "../components/Faq.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import { meta, site } from "../data/config";
+---
+
+<BaseLayout title={meta.title} description={meta.description}>
+	<Fragment slot="head">
+		<link rel="preload" href="/fonts/francker-semibold.woff2" as="font" type="font/woff2" crossorigin />
+		<link rel="preload" href="/fonts/marzano-black.woff2" as="font" type="font/woff2" crossorigin />
+		<link rel="preload" href="/fonts/rubik-latin.woff2" as="font" type="font/woff2" crossorigin />
+	</Fragment>
+
+	{/*
+		One decoration layer spanning everything above the footer, so it begins at
+		the very top of the page — behind the attention bar rather than below it —
+		and runs unbroken through every section.
+
+		The sections deliberately have no background of their own: a background on
+		any of them would paint straight over this layer. The page white comes
+		from <body> instead.
+	*/}
+	<div class="page">
+		<EdgeDecor seed={1} tiles={22} />
+
+		<div class="page__content">
+			<TopTicker />
+
+			<main>
+				<Hero />
+				<Stats />
+				<Projects />
+				<Faq />
+			</main>
+		</div>
+	</div>
+
+	<SiteFooter />
+</BaseLayout>
+
+<style>
+	.page {
+		position: relative;
+		/* Keeps the tilted attention bar from widening the page now that no
+		   section below is clipping it. */
+		overflow-x: clip;
+	}
+
+	.page__content {
+		position: relative;
+		z-index: 1;
+	}
+</style>

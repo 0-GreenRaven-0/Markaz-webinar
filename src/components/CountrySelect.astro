@@ -1,0 +1,338 @@
+---
+import { countries } from "../data/countries";
+
+/**
+ * Country dial-code picker with real flag images.
+ *
+ * This is a custom control rather than a native <select> because browsers
+ * render <option> as plain text — a native dropdown cannot show an image. (It
+ * is also why flag emoji showed as "LB": Windows draws no flag glyphs at all.)
+ *
+ * It behaves like a native one where it counts: it is keyboard operable, is
+ * announced as a combobox, closes on Escape or outside click, and writes to a
+ * hidden input so the form submits exactly as before.
+ *
+ * Flags are lazy-loaded, so only the rows actually on screen are fetched.
+ */
+const def = countries[0];
+---
+
+<div class="combo" data-combo data-dial={def.dial}>
+	<input type="hidden" name="country" value={def.iso} data-combo-value />
+
+	<button
+		type="button"
+		class="combo__trigger"
+		aria-haspopup="listbox"
+		aria-expanded="false"
+		aria-label="Country dialling code"
+		data-combo-trigger
+	>
+		<span class="combo__inner">
+			<img
+				class="combo__flag"
+				src={`/flags/${def.iso.toLowerCase()}.svg`}
+				alt=""
+				width="22"
+				height="16"
+				data-combo-flag
+			/>
+			<span class="combo__dial" data-combo-dial>{def.dial}</span>
+			<svg class="combo__chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+				<path
+					d="M6 9l6 6 6-6"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+			</svg>
+		</span>
+	</button>
+
+	<div class="combo__panel" hidden data-combo-panel>
+		<input
+			type="text"
+			class="combo__search"
+			placeholder="Search country"
+			aria-label="Search country"
+			autocomplete="off"
+			data-combo-search
+		/>
+		<ul class="combo__list" role="listbox" aria-label="Country" data-combo-list>
+			{
+				countries.map((c) => (
+					<li
+						class="combo__option"
+						role="option"
+						id={`country-${c.iso}`}
+						aria-selected={c.iso === def.iso ? "true" : "false"}
+						data-iso={c.iso}
+						data-dial={c.dial}
+						data-name={c.name}
+					>
+						<img
+							class="combo__flag"
+							src={`/flags/${c.iso.toLowerCase()}.svg`}
+							alt=""
+							width="22"
+							height="16"
+							loading="lazy"
+							decoding="async"
+						/>
+						<span class="combo__name">{c.name}</span>
+						<span class="combo__code">{c.dial}</span>
+					</li>
+				))
+			}
+		</ul>
+		<p class="combo__empty" hidden data-combo-empty>No country matches that.</p>
+	</div>
+</div>
+
+<script>
+	for (const combo of document.querySelectorAll<HTMLElement>("[data-combo]")) {
+		const trigger = combo.querySelector<HTMLButtonElement>("[data-combo-trigger]")!;
+		const panel = combo.querySelector<HTMLElement>("[data-combo-panel]")!;
+		const search = combo.querySelector<HTMLInputElement>("[data-combo-search]")!;
+		const list = combo.querySelector<HTMLElement>("[data-combo-list]")!;
+		const empty = combo.querySelector<HTMLElement>("[data-combo-empty]")!;
+		const valueInput = combo.querySelector<HTMLInputElement>("[data-combo-value]")!;
+		const flagEl = combo.querySelector<HTMLImageElement>("[data-combo-flag]")!;
+		const dialEl = combo.querySelector<HTMLElement>("[data-combo-dial]")!;
+		const options = [...combo.querySelectorAll<HTMLElement>(".combo__option")];
+
+		let active = options.findIndex((o) => o.getAttribute("aria-selected") === "true");
+		if (active < 0) active = 0;
+
+		const visible = () => options.filter((o) => !o.hidden);
+
+		const setActive = (option: HTMLElement | undefined) => {
+			if (!option) return;
+			for (const o of options) o.classList.remove("is-active");
+			option.classList.add("is-active");
+			list.setAttribute("aria-activedescendant", option.id);
+			option.scrollIntoView({ block: "nearest" });
+			active = options.indexOf(option);
+		};
+
+		const open = () => {
+			panel.hidden = false;
+			trigger.setAttribute("aria-expanded", "true");
+			search.value = "";
+			filter("");
+			setActive(options[active] ?? visible()[0]);
+			search.focus();
+		};
+
+		const close = ({ focusTrigger = true } = {}) => {
+			panel.hidden = true;
+			trigger.setAttribute("aria-expanded", "false");
+			if (focusTrigger) trigger.focus();
+		};
+
+		const choose = (option: HTMLElement) => {
+			for (const o of options) o.setAttribute("aria-selected", "false");
+			option.setAttribute("aria-selected", "true");
+
+			const iso = option.dataset.iso ?? "";
+			const dial = option.dataset.dial ?? "";
+			valueInput.value = iso;
+			combo.dataset.dial = dial;
+			dialEl.textContent = dial;
+			flagEl.src = `/flags/${iso.toLowerCase()}.svg`;
+			close();
+		};
+
+		const filter = (term: string) => {
+			const q = term.trim().toLowerCase();
+			let shown = 0;
+			for (const o of options) {
+				const name = (o.dataset.name ?? "").toLowerCase();
+				const dial = o.dataset.dial ?? "";
+				const iso = (o.dataset.iso ?? "").toLowerCase();
+				const match = !q || name.includes(q) || dial.includes(q) || iso.startsWith(q);
+				o.hidden = !match;
+				if (match) shown++;
+			}
+			empty.hidden = shown > 0;
+			if (shown > 0) setActive(visible()[0]);
+		};
+
+		trigger.addEventListener("click", () => (panel.hidden ? open() : close()));
+
+		search.addEventListener("input", () => filter(search.value));
+
+		search.addEventListener("keydown", (e) => {
+			const items = visible();
+			const at = items.indexOf(options[active]);
+
+			if (e.key === "ArrowDown") {
+				e.preventDefault();
+				setActive(items[Math.min(at + 1, items.length - 1)] ?? items[0]);
+			} else if (e.key === "ArrowUp") {
+				e.preventDefault();
+				setActive(items[Math.max(at - 1, 0)] ?? items[0]);
+			} else if (e.key === "Home") {
+				e.preventDefault();
+				setActive(items[0]);
+			} else if (e.key === "End") {
+				e.preventDefault();
+				setActive(items[items.length - 1]);
+			} else if (e.key === "Enter") {
+				e.preventDefault();
+				const current = options[active];
+				if (current && !current.hidden) choose(current);
+			} else if (e.key === "Escape") {
+				e.preventDefault();
+				close();
+			}
+		});
+
+		list.addEventListener("click", (e) => {
+			const option = (e.target as HTMLElement).closest<HTMLElement>(".combo__option");
+			if (option) choose(option);
+		});
+
+		// Close when focus or a click goes elsewhere.
+		document.addEventListener("click", (e) => {
+			if (!panel.hidden && !combo.contains(e.target as Node)) close({ focusTrigger: false });
+		});
+
+		combo.addEventListener("focusout", () => {
+			window.setTimeout(() => {
+				if (!combo.contains(document.activeElement)) close({ focusTrigger: false });
+			}, 0);
+		});
+	}
+</script>
+
+<style>
+	.combo {
+		position: relative;
+	}
+
+	.combo__trigger {
+		width: 100%;
+		padding: var(--space-xs) var(--space-sm);
+		/* Sharp corners and a heavy edge, matching the brand parallelogram. */
+		border: 2px solid var(--color-text);
+		border-radius: 0;
+		background: var(--color-bg);
+		color: var(--color-text);
+		font-size: var(--text-base);
+		text-align: start;
+		/* Leans like the brand parallelogram. */
+		transform: skewX(var(--field-skew));
+	}
+
+	/* Content is skewed back so only the box leans, never the text. */
+	.combo__inner {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2xs);
+		transform: skewX(calc(var(--field-skew) * -1));
+	}
+
+	.combo__trigger:focus-visible {
+		outline: 2px solid var(--color-focus);
+		outline-offset: 1px;
+		border-color: var(--color-focus);
+	}
+
+	.combo__flag {
+		width: 1.375rem;
+		height: 1rem;
+		object-fit: cover;
+		border-radius: 1px;
+		flex: none;
+		/* Pale flags (Japan, Poland) need an edge to read against white. */
+		box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-text) 14%, transparent);
+	}
+
+	.combo__dial {
+		font-variant-numeric: tabular-nums;
+	}
+
+	.combo__chevron {
+		width: 1.1rem;
+		height: 1.1rem;
+		margin-inline-start: auto;
+		color: var(--color-text-muted);
+		flex: none;
+	}
+
+	/* The panel itself stays upright — a leaning list is hard to read. */
+	.combo__panel {
+		position: absolute;
+		z-index: 20;
+		inset-block-start: calc(100% + 0.375rem);
+		inset-inline-start: 0;
+		width: max(100%, 20rem);
+		max-width: calc(100vw - 2rem);
+		background: var(--color-bg);
+		border: 2px solid var(--color-text);
+		border-radius: 0;
+		box-shadow: 0 12px 28px color-mix(in srgb, var(--color-text) 18%, transparent);
+		overflow: hidden;
+	}
+
+	.combo__search {
+		width: 100%;
+		padding: var(--space-xs) var(--space-sm);
+		border: 0;
+		border-block-end: 1px solid var(--color-border);
+		background: var(--color-bg);
+		color: var(--color-text);
+		font-size: var(--text-sm);
+	}
+
+	.combo__search:focus-visible {
+		outline: 2px solid var(--color-focus);
+		outline-offset: -2px;
+	}
+
+	.combo__list {
+		max-height: 16rem;
+		overflow-y: auto;
+		margin: 0;
+		padding: var(--space-3xs);
+		list-style: none;
+	}
+
+	.combo__option {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2xs);
+		padding: var(--space-3xs) var(--space-2xs);
+		border-radius: var(--radius-sm);
+		font-size: var(--text-sm);
+		cursor: pointer;
+	}
+
+	.combo__option.is-active,
+	.combo__option:hover {
+		background: var(--color-surface);
+	}
+
+	.combo__option[aria-selected="true"] {
+		font-weight: var(--weight-semibold);
+	}
+
+	.combo__name {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.combo__code {
+		color: var(--color-text-muted);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.combo__empty {
+		padding: var(--space-sm);
+		font-size: var(--text-sm);
+		color: var(--color-text-muted);
+	}
+</style>

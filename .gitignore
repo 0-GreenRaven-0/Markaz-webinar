@@ -1,0 +1,47 @@
+# build output
+dist/
+# generated types
+.astro/
+
+# dependencies
+node_modules/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+
+# environment variables
+.env
+.env.production
+
+# macOS-specific files
+.DS_Store
+
+# jetbrains setting folder
+.idea/
+
+# service account credentials — never commit, never put in public/
+*-service-account*.json
+propconnect-*.json
+
+.dev.vars
+
+# local Cloudflare/wrangler state
+.wrangler/
+
+# editor workspace settings
+.vscode/
+
+# scratch: the pasted Brevo form embed, kept for reference only
+text
+
+# untouched video originals — 148MB, not needed to build or deploy the site.
+# KEEP YOUR OWN BACKUP of this folder; it is not in the repo.
+media-source/
+
+# commercial fonts kept for reference only. This repo must not redistribute
+# them — see the README inside that folder.
+brand/fonts/_unlicensed-do-not-ship/

@@ -1,0 +1,190 @@
+---
+import { seatsRemaining } from "../data/config";
+
+/**
+ * The seat counter.
+ *
+ * It deliberately shows nothing but a loading animation at first. The real
+ * figure is the number in config.ts minus everyone already on the signup
+ * sheet, which only /api/seats can work out — this page is static, so the
+ * number cannot be in the HTML.
+ *
+ * `data-seats-fallback` is the configured number, used only if that request
+ * fails. A slightly stale count is harmless; an empty hero is not.
+ */
+---
+
+<p class="seats" data-seats-fallback={seatsRemaining} data-state="loading" aria-busy="true">
+	<span class="seats__slot">
+		<span class="seats__number" data-seats-number></span>
+		<span class="seats__loader" aria-hidden="true">
+			<span class="seats__dot"></span>
+			<span class="seats__dot"></span>
+			<span class="seats__dot"></span>
+		</span>
+		<span class="visually-hidden" data-seats-status>Checking how many seats are left</span>
+	</span>
+	<span class="seats__label">seats remaining</span>
+</p>
+
+<script>
+	const EASE_MS = 1400;
+	/* The loader is held briefly even on a fast answer. A counter that flashes
+	   through three states in 80ms reads as a glitch rather than as loading. */
+	const MIN_LOADER_MS = 600;
+
+	for (const el of document.querySelectorAll<HTMLElement>(".seats")) {
+		const numberEl = el.querySelector<HTMLElement>("[data-seats-number]");
+		const statusEl = el.querySelector<HTMLElement>("[data-seats-status]");
+		const fallback = Number(el.dataset.seatsFallback ?? "0");
+		if (!numberEl) continue;
+
+		const startedAt = performance.now();
+
+		const reveal = (target: number) => {
+			if (!Number.isFinite(target) || target < 0) return;
+
+			// Pin the box to the width of the final number so counting up cannot
+			// shove the label sideways.
+			el.style.setProperty("--seats-digits", String(String(target).length));
+			el.dataset.state = "ready";
+			el.setAttribute("aria-busy", "false");
+			if (statusEl) statusEl.textContent = `${target} seats remaining`;
+
+			if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+				numberEl.textContent = String(target);
+				return;
+			}
+
+			const start = performance.now();
+			const tick = (now: number) => {
+				const t = Math.min((now - start) / EASE_MS, 1);
+				// easeOutCubic — fast at first, settling at the end
+				const eased = 1 - Math.pow(1 - t, 3);
+				numberEl.textContent = String(Math.round(eased * target));
+				if (t < 1) {
+					requestAnimationFrame(tick);
+				} else {
+					numberEl.textContent = String(target);
+				}
+			};
+			requestAnimationFrame(tick);
+		};
+
+		const finish = (target: number) => {
+			const elapsed = performance.now() - startedAt;
+			const wait = Math.max(0, MIN_LOADER_MS - elapsed);
+			window.setTimeout(() => reveal(target), wait);
+		};
+
+		fetch("/api/seats", { headers: { accept: "application/json" } })
+			.then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+			.then((data: { remaining?: number }) => {
+				const remaining = Number(data?.remaining);
+				finish(Number.isFinite(remaining) ? remaining : fallback);
+			})
+			.catch(() => finish(fallback));
+	}
+</script>
+
+<style>
+	.seats {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-2xs);
+		margin: 0;
+	}
+
+	/* Holds the number and the loader in the same place, so the row does not
+	   jump when one replaces the other. */
+	.seats__slot {
+		display: inline-grid;
+		place-items: center end;
+	}
+
+	.seats__slot > * {
+		grid-area: 1 / 1;
+	}
+
+	.seats__number {
+		font-family: var(--font-display);
+		font-weight: var(--weight-display);
+		font-size: var(--text-3xl);
+		line-height: var(--leading-tight);
+		color: var(--color-text);
+		/* Marzano digits are proportional and it has no tnum feature, so the box
+		   is pinned to the width of the widest digits instead. Sized from the
+		   final figure, so counting up never moves the label. */
+		font-variant-numeric: tabular-nums;
+		min-width: calc(var(--seats-digits, 3) * 0.66em);
+		text-align: end;
+		opacity: 0;
+		transition: opacity 240ms ease;
+	}
+
+	.seats[data-state="ready"] .seats__number {
+		opacity: 1;
+	}
+
+	/* --- Loading --- */
+	.seats__loader {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3xs);
+		/* Matches the height the number will occupy, so nothing shifts. */
+		height: 1em;
+		font-size: var(--text-3xl);
+		opacity: 1;
+		transition: opacity 180ms ease;
+	}
+
+	.seats[data-state="ready"] .seats__loader {
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	/* Hard-edged squares rather than circles — the same low-poly language as
+	   the button and the panels. */
+	.seats__dot {
+		width: 0.22em;
+		height: 0.22em;
+		background: var(--color-brand);
+		animation: seats-pulse 1100ms ease-in-out infinite;
+	}
+
+	.seats__dot:nth-child(2) {
+		animation-delay: 160ms;
+	}
+
+	.seats__dot:nth-child(3) {
+		animation-delay: 320ms;
+	}
+
+	@keyframes seats-pulse {
+		0%,
+		100% {
+			opacity: 0.25;
+			transform: scale(0.8);
+		}
+		50% {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.seats__dot {
+			animation: none;
+			opacity: 0.6;
+		}
+	}
+
+	.seats__label {
+		font-size: var(--text-base);
+		font-weight: var(--weight-semibold);
+		/* The brightest green in the palette, as asked. Worth knowing: it sits at
+		   2.6:1 on white, well under the 4.5:1 readability threshold.
+		   --color-brand-strong is the same hue and passes, if you want to swap. */
+		color: var(--color-brand);
+	}
+</style>

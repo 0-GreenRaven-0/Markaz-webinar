@@ -1,0 +1,84 @@
+---
+import LegalPage from "../layouts/LegalPage.astro";
+import { site } from "../data/config";
+
+/**
+ * Ported from the droparabia-landing terms.
+ *
+ * The one clause NOT copied is droparabia's 90-day refund guarantee. It is a
+ * specific promise about a different, paid product, and this page sells
+ * nothing — the webinar is free. Section 2 says so instead. When the paid
+ * cohort has its own checkout, its refund terms belong with that purchase, and
+ * the droparabia wording is the right starting point for them.
+ */
+---
+
+<LegalPage
+	title={`Terms and conditions — ${site.name}`}
+	description={`The terms that apply when you register for the free ${site.name} webinar.`}
+	heading="Terms and conditions"
+	updated="October 2026"
+>
+	<p>By registering for our webinar or using this site, you agree to the following terms.</p>
+
+	<section>
+		<h2>1. Registration and access</h2>
+		<p>
+			When you register, we send you a link to attend the webinar. That link is for your
+			personal use and is not transferable. Sharing it, or recording, republishing or
+			redistributing the webinar in any form, is not permitted.
+		</p>
+	</section>
+
+	<section>
+		<h2>2. The webinar is free</h2>
+		<p>
+			There is no charge to attend and nothing to pay on this site. If we later offer a paid
+			program, its own terms — including anything about payment and refunds — will be shown
+			to you before you buy, and you will have to accept them separately.
+		</p>
+	</section>
+
+	<section>
+		<h2>3. No guarantee of results</h2>
+		<p>
+			Our material is educational. Figures we mention describe past work by our team and
+			students; they are not a promise of what you will earn or achieve. What you get out of
+			it depends on your own effort, skill and circumstances.
+		</p>
+	</section>
+
+	<section>
+		<h2>4. Attendance</h2>
+		<p>
+			The webinar runs live at the advertised time. Replays are not guaranteed, so register
+			only if you intend to attend. We may change the date or time, and if we do we will tell
+			everyone who has registered.
+		</p>
+	</section>
+
+	<section>
+		<h2>5. Intellectual property</h2>
+		<p>
+			Everything presented in the webinar and published on this site — including the
+			training material, student project videos, text and brand marks — is protected by
+			copyright. You may not reproduce, republish, resell or distribute any part of it.
+			Student projects shown remain the property of the students who made them.
+		</p>
+	</section>
+
+	<section>
+		<h2>6. Removing access</h2>
+		<p>
+			We may cancel a registration or remove someone from the webinar if these terms are
+			broken, including abusive behaviour, disruption, or sharing access with others.
+		</p>
+	</section>
+
+	<section>
+		<h2>Contact</h2>
+		<p>
+			Any questions about these terms: <a href={`mailto:${site.email}`}>{site.email}</a>.
+		</p>
+	</section>
+</LegalPage>

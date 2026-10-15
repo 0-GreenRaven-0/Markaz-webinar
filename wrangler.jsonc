@@ -1,0 +1,26 @@
+// Cloudflare deployment settings.
+//
+// This exists so the standard `npx wrangler deploy` works with no extra
+// arguments, which is what Cloudflare runs by default when it builds from
+// GitHub. Without it, wrangler finds no configuration and the deploy step
+// fails even though the build succeeded.
+//
+// `astro build` reads this file and writes the finished version into
+// dist/server/wrangler.json. Edit this one, never that one.
+//
+// Secrets are NOT set here. They go in the Cloudflare dashboard under
+// Settings > Variables and Secrets: GOOGLE_SERVICE_ACCOUNT_JSON,
+// GOOGLE_SHEET_SIGNUPS, BREVO_API_KEY and BREVO_LIST_SIGNUPS.
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "markaz-studio",
+	"compatibility_date": "2026-10-12", // the newest date the installed runtime supports
+	"main": "@astrojs/cloudflare/entrypoints/server",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": "./dist"
+	},
+	"observability": {
+		"enabled": true
+	}
+}

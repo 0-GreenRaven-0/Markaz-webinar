@@ -1,0 +1,216 @@
+---
+/**
+ * Faceted mesh down the left and right edges of the page.
+ *
+ * Built as a TESSELLATION, not as scattered shapes: a jittered grid of points
+ * split into triangles that share their vertices, so facets tile edge to edge
+ * and never overlap. Scattered triangles pile up in places and leave gaps in
+ * others, and blending makes the pile-ups darker still — that is what produces
+ * blotches. Hence flat fills and no blend mode.
+ *
+ * The INNER boundary is deliberately ragged. The column of points nearest the
+ * text swings between roughly 60% and 100% of the strip width, so the mesh
+ * finishes on an irregular edge rather than a ruled line.
+ *
+ * The strip is stacked tiles, because one stretched SVG would shear every
+ * triangle into a spike. Tiles share their seam rows — tile n's bottom row is
+ * literally tile n+1's top row — so they join invisibly while still varying at
+ * every seam.
+ *
+ * Decorative only: hidden from screen readers, ignores clicks, sits behind
+ * content. Parent needs `position: relative`.
+ */
+interface Props {
+	seed?: number;
+	/** How many tiles run down each edge. Extra tiles are simply clipped. */
+	tiles?: number;
+}
+
+const { seed = 0, tiles = 16 } = Astro.props;
+
+/** Change this to reshuffle every decoration on the site. */
+const SEED = 8675309;
+
+const W = 300;
+const H = 900;
+const COLS = 2;
+const ROWS = 6;
+const CELL_H = H / ROWS;
+
+/** Weighted towards the palest tones, so the mesh stays quiet. */
+const TONES = ["t1", "t1", "t2", "t2", "t3", "t4"] as const;
+
+function mulberry32(a: number) {
+	return function () {
+		a |= 0;
+		a = (a + 0x6d2b79f5) | 0;
+		let t = Math.imul(a ^ (a >>> 15), 1 | a);
+		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
+}
+
+const r1 = (n: number) => Math.round(n * 10) / 10;
+type Pt = [number, number];
+
+/**
+ * x for one row of points. Column 0 sits just past the screen edge so no gap
+ * can open there; the last column roams, which is what frees the inner edge.
+ */
+function rowXs(rand: () => number): number[] {
+	return [
+		-25 + rand() * 25,
+		W * (0.3 + rand() * 0.22),
+		W * (0.58 + rand() * 0.42),
+	];
+}
+
+function buildSide(sideSeed: number) {
+	// One shared row of points per seam, so neighbouring tiles line up exactly.
+	const seams = Array.from({ length: tiles + 1 }, (_, i) =>
+		rowXs(mulberry32(sideSeed + i * 7919)),
+	);
+
+	return Array.from({ length: tiles }, (_, t) => {
+		const rand = mulberry32(sideSeed + t * 31 + 5);
+		const grid: Pt[][] = [];
+
+		for (let r = 0; r <= ROWS; r++) {
+			if (r === 0) grid[r] = seams[t].map((x) => [x, 0] as Pt);
+			else if (r === ROWS) grid[r] = seams[t + 1].map((x) => [x, H] as Pt);
+			else {
+				const xs = rowXs(rand);
+				grid[r] = xs.map(
+					(x, c) => [x, r * CELL_H + (rand() - 0.5) * CELL_H * 0.5] as Pt,
+				);
+			}
+		}
+
+		const out: { points: string; tone: string }[] = [];
+		for (let r = 0; r < ROWS; r++) {
+			for (let c = 0; c < COLS; c++) {
+				const a = grid[r][c];
+				const b = grid[r][c + 1];
+				const d = grid[r + 1][c + 1];
+				const e = grid[r + 1][c];
+				const pair =
+					rand() > 0.5
+						? [
+								[a, b, d],
+								[a, d, e],
+							]
+						: [
+								[a, b, e],
+								[b, d, e],
+							];
+				for (const tri of pair as Pt[][]) {
+					out.push({
+						points: tri.map((p) => `${r1(p[0])},${r1(p[1])}`).join(" "),
+						tone: TONES[Math.floor(rand() * TONES.length)],
+					});
+				}
+			}
+		}
+		return out;
+	});
+}
+
+const base = SEED + seed * 977;
+const leftTiles = buildSide(base + 11);
+const rightTiles = buildSide(base + 613);
+---
+
+<div class="decor" aria-hidden="true">
+	<div class="decor__edge decor__edge--start">
+		{
+			leftTiles.map((facets) => (
+				<svg class="decor__tile" viewBox={`0 0 ${W} ${H}`} focusable="false">
+					{facets.map((f) => (
+						<polygon class={`facet facet--${f.tone}`} points={f.points} />
+					))}
+				</svg>
+			))
+		}
+	</div>
+
+	<div class="decor__edge decor__edge--end">
+		{
+			rightTiles.map((facets) => (
+				<svg class="decor__tile" viewBox={`0 0 ${W} ${H}`} focusable="false">
+					{facets.map((f) => (
+						<polygon class={`facet facet--${f.tone}`} points={f.points} />
+					))}
+				</svg>
+			))
+		}
+	</div>
+</div>
+
+<style>
+	.decor {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		pointer-events: none;
+		/* Not clipped: the mesh is allowed to finish on its own ragged edge
+		   rather than being cut off by the container. */
+		overflow: hidden;
+	}
+
+	.decor__edge {
+		position: absolute;
+		inset-block-start: 0;
+		display: flex;
+		flex-direction: column;
+		width: clamp(4rem, 11vw, 10rem);
+	}
+
+	.decor__edge--start {
+		inset-inline-start: 0;
+	}
+
+	.decor__edge--end {
+		inset-inline-end: 0;
+		transform: scaleX(-1);
+	}
+
+	:global([dir="rtl"]) .decor__edge--start {
+		transform: scaleX(-1);
+	}
+
+	:global([dir="rtl"]) .decor__edge--end {
+		transform: scaleX(1);
+	}
+
+	/* aspect-ratio matches the viewBox, so triangles are never sheared. */
+	.decor__tile {
+		display: block;
+		flex: none;
+		width: 100%;
+		aspect-ratio: 300 / 900;
+	}
+
+	/* Flat fills, deliberately no blend mode — the facets tile rather than
+	   overlap, so there is nothing to blend. */
+	.facet--t1 {
+		fill: var(--color-surface);
+	}
+
+	.facet--t2 {
+		fill: var(--color-surface-sunken);
+	}
+
+	.facet--t3 {
+		fill: var(--color-facet-soft);
+	}
+
+	.facet--t4 {
+		fill: var(--color-facet-mid);
+	}
+
+	@media (max-width: 40rem) {
+		.decor__edge {
+			width: clamp(2.5rem, 9vw, 5rem);
+		}
+	}
+</style>

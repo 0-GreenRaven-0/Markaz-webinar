@@ -1,0 +1,151 @@
+---
+import { webinarAt } from "../data/config";
+
+/**
+ * Live countdown to the webinar, styled to sit beside the seats counter.
+ *
+ * The initial values are worked out at build time so the markup is never
+ * blank or zeroed before the script runs — otherwise visitors see "00 00 00"
+ * flash on every page load. The script then takes over and ticks each second.
+ *
+ * Placeholder content: which figure belongs here is still to be decided.
+ */
+const target = new Date(webinarAt).getTime();
+const now = Date.now();
+const left = Math.max(0, target - now);
+
+const pad = (n: number) => String(n).padStart(2, "0");
+const initial = {
+	days: pad(Math.floor(left / 86_400_000)),
+	hours: pad(Math.floor(left / 3_600_000) % 24),
+	minutes: pad(Math.floor(left / 60_000) % 60),
+	seconds: pad(Math.floor(left / 1000) % 60),
+};
+---
+
+<p class="countdown" data-countdown data-target={webinarAt}>
+	<span class="countdown__unit">
+		<span class="countdown__num" data-cd-days>{initial.days}</span>
+		<span class="countdown__label">days</span>
+	</span>
+	<span class="countdown__unit">
+		<span class="countdown__num" data-cd-hours>{initial.hours}</span>
+		<span class="countdown__label">hrs</span>
+	</span>
+	<span class="countdown__unit">
+		<span class="countdown__num" data-cd-mins>{initial.minutes}</span>
+		<span class="countdown__label">min</span>
+	</span>
+	<span class="countdown__unit">
+		<span class="countdown__num" data-cd-secs>{initial.seconds}</span>
+		<span class="countdown__label">sec</span>
+	</span>
+</p>
+
+<script>
+	for (const el of document.querySelectorAll<HTMLElement>("[data-countdown]")) {
+		const target = new Date(el.dataset.target ?? "").getTime();
+		if (!Number.isFinite(target)) continue;
+
+		const daysEl = el.querySelector<HTMLElement>("[data-cd-days]");
+		const hoursEl = el.querySelector<HTMLElement>("[data-cd-hours]");
+		const minsEl = el.querySelector<HTMLElement>("[data-cd-mins]");
+		const secsEl = el.querySelector<HTMLElement>("[data-cd-secs]");
+		const pad = (n: number) => String(n).padStart(2, "0");
+
+		const render = () => {
+			const left = Math.max(0, target - Date.now());
+
+			if (left === 0) {
+				el.dataset.state = "live";
+				return false;
+			}
+
+			if (daysEl) daysEl.textContent = pad(Math.floor(left / 86_400_000));
+			if (hoursEl) hoursEl.textContent = pad(Math.floor(left / 3_600_000) % 24);
+			if (minsEl) minsEl.textContent = pad(Math.floor(left / 60_000) % 60);
+			if (secsEl) secsEl.textContent = pad(Math.floor(left / 1000) % 60);
+			return true;
+		};
+
+		if (render()) {
+			const id = window.setInterval(() => {
+				if (!render()) window.clearInterval(id);
+			}, 1000);
+		}
+	}
+</script>
+
+<style>
+	.countdown {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-xs);
+		margin: 0;
+	}
+
+	.countdown__unit {
+		display: flex;
+		align-items: baseline;
+		gap: 0.3em;
+	}
+
+	.countdown__num {
+		font-family: var(--font-display);
+		font-weight: var(--weight-display);
+		font-size: var(--text-2xl);
+		line-height: var(--leading-tight);
+		color: var(--color-text);
+		/* Marzano has PROPORTIONAL digits — "1" is 477 units wide and "4" is 598 —
+		   and ships no tnum feature, so font-variant-numeric cannot fix it. Each
+		   pair therefore gets a fixed box, wide enough for the widest two digits,
+		   so the row cannot re-measure itself every second. */
+		font-variant-numeric: tabular-nums;
+		min-width: 1.35em;
+		text-align: center;
+	}
+
+	.countdown__label {
+		font-size: var(--text-sm);
+		font-weight: var(--weight-semibold);
+		color: var(--color-brand);
+	}
+
+	/* Phone: four number-and-label pairs on one line is the tightest row on the
+	   page, so both step down to keep it comfortably inside the screen. */
+	@media (max-width: 40rem) {
+		.countdown__num {
+			font-size: var(--text-xl);
+		}
+
+		.countdown__label {
+			font-size: var(--text-xs);
+		}
+	}
+
+	/* Once the webinar starts, the numbers are meaningless. */
+	.countdown[data-state="live"] .countdown__num {
+		font-size: var(--text-xl);
+	}
+
+	.countdown[data-state="live"] .countdown__unit:not(:first-child) {
+		display: none;
+	}
+
+	.countdown[data-state="live"] .countdown__num::after {
+		content: "LIVE NOW";
+	}
+
+	.countdown[data-state="live"] [data-cd-days] {
+		font-size: 0;
+	}
+
+	.countdown[data-state="live"] .countdown__num::after {
+		font-size: var(--text-2xl);
+		color: var(--color-brand-strong);
+	}
+
+	.countdown[data-state="live"] .countdown__label {
+		display: none;
+	}
+</style>

@@ -1,0 +1,98 @@
+/* ---------------------------------------------------------------------------
+   Rubik — self-hosted, SIL Open Font License, no third-party request at
+   runtime. One variable file covers every weight from 300 to 900.
+   The Arabic file is only downloaded if Arabic characters appear on the page,
+   because of its unicode-range — it costs nothing while the site is English.
+   --------------------------------------------------------------------------- */
+
+@font-face {
+	font-family: "Rubik";
+	font-style: normal;
+	font-weight: 300 900;
+	font-display: swap;
+	src: url("/fonts/rubik-latin.woff2") format("woff2");
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+		U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+		U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: "Rubik";
+	font-style: normal;
+	font-weight: 300 900;
+	font-display: swap;
+	src: url("/fonts/rubik-arabic.woff2") format("woff2");
+	unicode-range: U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1,
+		U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF,
+		U+FE70-FE74, U+FE76-FEFC;
+}
+
+/* ---------------------------------------------------------------------------
+   Francker W06 Semibold — headlines.
+
+   Only one weight exists (Semibold), declared here as exactly 600 so browsers
+   never synthesise a heavier version, which looks smeared. Francker has no
+   Arabic glyphs, so Rubik stays behind it in the stack and picks up anything
+   Francker cannot draw.
+
+   Licence note: this file came from a font-aggregator download and is Linotype
+   / Monotype property. To swap in a purchased web licence later, overwrite
+   public/fonts/francker-semibold.woff2 — nothing else needs to change.
+   --------------------------------------------------------------------------- */
+
+@font-face {
+	font-family: "Francker";
+	font-style: normal;
+	font-weight: 600;
+	font-display: swap;
+	src: url("/fonts/francker-semibold.woff2") format("woff2");
+}
+
+/* ---------------------------------------------------------------------------
+   Marzano Black — display numerals only (the seats counter).
+
+   A 97-glyph subset: digits and basic Latin, nothing more. Verified all ten
+   digits are present. It is only ever applied to numbers, so the subset is not
+   a problem, but do not set body copy in it.
+
+   One weight (Black), declared as 900 so browsers never synthesise a heavier
+   one. Rubik sits behind it for anything it cannot draw.
+   --------------------------------------------------------------------------- */
+
+@font-face {
+	font-family: "Marzano";
+	font-style: normal;
+	font-weight: 900;
+	font-display: swap;
+	src: url("/fonts/marzano-black.woff2") format("woff2");
+}
+
+/* ---------------------------------------------------------------------------
+   Watermark workaround for the Marzano demo build.
+
+   Six of its glyphs are not the characters they claim to be — each is a hidden
+   DEMO wordmark. Found by comparing contour counts against what each
+   character actually needs to draw: a + needs 1 contour and Marzano's has 9,
+   which is D, E, M and O plus the stroke.
+
+     4  $  +  %  -  /
+
+   Checking the font's character map is NOT enough to catch this: all six are
+   mapped and look present. Only the outlines give it away.
+
+   These six are borrowed from Rubik via unicode-range, listed ahead of Marzano
+   in --font-display, so every other character still comes from Marzano.
+
+   A purchased licence ships them uncrippled — drop that file in as
+   marzano-black.woff2 and this block can be deleted.
+   --------------------------------------------------------------------------- */
+
+@font-face {
+	font-family: MarzanoDigitFix;
+	font-style: normal;
+	font-weight: 900;
+	font-display: swap;
+	src: url(/fonts/rubik-latin.woff2) format(woff2);
+	/* $ % + - / and the digit 4 */
+	unicode-range: U+0024, U+0025, U+002B, U+002D, U+002F, U+0034;
+}

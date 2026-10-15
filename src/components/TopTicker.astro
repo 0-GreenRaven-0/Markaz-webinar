@@ -1,0 +1,121 @@
+---
+import { webinarDate } from "../data/config";
+
+/**
+ * Scrolling attention bar across the top of the page.
+ *
+ * The loop works by rendering the message set twice and sliding the track
+ * exactly -50%: at that point the second copy sits precisely where the first
+ * started, so the restart is invisible. The set repeats enough times to be
+ * wider than any realistic screen, otherwise a gap appears mid-loop on wide
+ * monitors.
+ *
+ * The duplicate copy is hidden from screen readers so the message is announced
+ * once, not twice. Motion stops entirely for anyone who has asked their system
+ * to reduce it, and pauses on hover or keyboard focus — continuously moving
+ * text is hard to read otherwise.
+ */
+const REPEATS = 8;
+const items = Array.from({ length: REPEATS });
+---
+
+<div class="ticker-zone">
+	<p class="visually-hidden">Free webinar: {webinarDate}</p>
+
+	<div class="ticker">
+		<div class="ticker__track" aria-hidden="true">
+		{
+			[0, 1].map(() => (
+				<span class="ticker__group">
+					{items.map(() => (
+						<>
+							<span class="ticker__item">Free webinar</span>
+							<span class="ticker__sep">—</span>
+							<span class="ticker__item">{webinarDate}</span>
+							<span class="ticker__sep">—</span>
+						</>
+					))}
+				</span>
+			))
+		}
+		</div>
+	</div>
+</div>
+
+<style>
+	/* `overflow-x: clip` rather than `overflow: hidden`: it stops the tilt
+	   creating a horizontal scrollbar while still letting the rotated corners
+	   show above and below. `hidden` would clip them, forcing wide padding
+	   here just to keep the bar's ends from being sliced off. */
+	.ticker-zone {
+		overflow-x: clip;
+		/* The tilt swings one end of the bar up and the other down, and how far it
+		   swings grows with screen width — so this room has to scale too. With a
+		   fixed value the rising end gets sliced off by the top of the window on
+		   wide screens while the falling end leaves a white wedge, which is what
+		   made the left side look broken. */
+		padding-block: clamp(1.5rem, 2vw, 2.75rem) clamp(1rem, 1.8vw, 2.5rem);
+	}
+
+	.ticker {
+		overflow: hidden;
+		background: var(--color-brand-hover);
+		color: var(--color-text-on-brand);
+		padding-block: var(--space-2xs);
+		/* Wider than the viewport, and pulled back by half the excess, so the
+		   tilted ends still reach past both edges instead of leaving white
+		   wedges in the corners. */
+		width: 112%;
+		margin-inline-start: -6%;
+		transform: rotate(-1.5deg);
+	}
+
+	.ticker__track {
+		display: flex;
+		width: max-content;
+		animation: ticker-scroll 78s linear infinite;
+	}
+
+	.ticker__group {
+		display: flex;
+		align-items: center;
+		flex: none;
+	}
+
+	.ticker__item {
+		font-family: var(--font-heading);
+		font-weight: var(--weight-heading);
+		font-size: var(--text-sm);
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	/* Everything in the bar stays at full strength — nothing dimmed. */
+	.ticker__sep {
+		padding-inline: var(--space-sm);
+	}
+
+	/* Sliding exactly half the track lands the second copy where the first
+	   began, so the loop has no visible seam. */
+	@keyframes ticker-scroll {
+		from {
+			transform: translateX(0);
+		}
+		to {
+			transform: translateX(-50%);
+		}
+	}
+
+	/* Moving text is hard to read — let people stop it. */
+	.ticker-zone:hover .ticker__track,
+	.ticker-zone:focus-within .ticker__track {
+		animation-play-state: paused;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.ticker__track {
+			animation: none;
+		}
+	}
+</style>

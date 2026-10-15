@@ -1,0 +1,134 @@
+---
+import { stats, trustedByHeading, trustedBy } from "../data/stats";
+
+/**
+ * Proof band between the hero and the projects.
+ *
+ * No background of its own, like every other section, so the page-wide facet
+ * decoration runs through it.
+ *
+ * That choice changes which green is usable: on a dark field the brightest
+ * brand green reads at 6.7:1, but on white it drops to 2.6:1 and is
+ * unreadable. The labels therefore use the darker action green, which holds at
+ * 6.3:1.
+ */
+---
+
+<section class="stats">
+	<div class="container stats__inner">
+		<div class="stats__trust">
+			<h2 class="stats__trust-heading">{trustedByHeading}</h2>
+			<ul class="stats__clients" role="list">
+				{trustedBy.map((client) => <li class="stats__client">{client}</li>)}
+			</ul>
+		</div>
+
+		<ul class="stats__figures" role="list">
+			{
+				stats.map((stat) => (
+					<li class="stat">
+						<span class="stat__value">{stat.value}</span>
+						<span class="stat__label">{stat.label}</span>
+					</li>
+				))
+			}
+		</ul>
+	</div>
+</section>
+
+<style>
+	.stats {
+		padding-block: var(--space-2xl);
+	}
+
+	/* One column at every width: who the studio has worked with, then the two
+	   figures beneath it. */
+	.stats__inner {
+		display: grid;
+		gap: var(--space-lg);
+	}
+
+	.stats__figures {
+		display: grid;
+		gap: var(--space-lg);
+		list-style: none;
+		padding-inline: 0;
+	}
+
+	@media (min-width: 32rem) {
+		.stats__figures {
+			grid-template-columns: repeat(2, auto);
+			gap: var(--space-2xl);
+		}
+	}
+
+	.stat {
+		display: grid;
+		gap: var(--space-3xs);
+	}
+
+	/* Rubik rather than the Marzano display face, because Marzano exists in one
+	   weight only — Black — so there is no lighter setting of it to ask for.
+	   Rubik is variable, which is what makes a step down in weight possible.
+	   It also means the $ and + here are drawn by the same font as the digits,
+	   so the demo-watermark workaround no longer touches this band at all. */
+	.stat__value {
+		font-family: var(--font-body);
+		font-weight: var(--weight-bold);
+		font-size: var(--text-stat);
+		line-height: var(--leading-tight);
+		color: var(--color-text);
+	}
+
+	.stat__label {
+		font-size: var(--text-base);
+		font-weight: var(--weight-semibold);
+		/* Darker green: the bright one is 2.6:1 on white. */
+		color: var(--color-brand-strong);
+	}
+
+	.stats__trust-heading {
+		font-size: var(--text-stat-heading);
+		color: var(--color-text);
+	}
+
+	.stats__clients {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2xs) var(--space-sm);
+		margin-block-start: var(--space-2xs);
+		list-style: none;
+		padding-inline: 0;
+		font-size: var(--text-base);
+		font-weight: var(--weight-medium);
+		color: var(--color-brand-strong);
+	}
+
+	/* Centred at every width. The band sits on its own between the hero and the
+	   projects, with nothing to the side of it to align an edge against. */
+	.stats__inner {
+		justify-items: center;
+		text-align: center;
+	}
+
+	.stats__figures {
+		justify-content: center;
+		justify-items: center;
+	}
+
+	.stats__clients {
+		justify-content: center;
+	}
+
+	/* Separators are drawn, not typed, so screen readers read a clean list. */
+	.stats__client + .stats__client::before {
+		content: "";
+		display: inline-block;
+		width: 1px;
+		height: 1em;
+		margin-inline-end: var(--space-sm);
+		vertical-align: -0.15em;
+		background: var(--color-border-strong);
+	}
+</style>

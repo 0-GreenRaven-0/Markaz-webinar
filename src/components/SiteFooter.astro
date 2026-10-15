@@ -1,0 +1,93 @@
+---
+import { site } from "../data/config";
+
+/**
+ * Dark footer, so it uses the WHITE version of the horizontal logo. The green
+ * one sets "STUDIOS" in navy, which disappears against this background — if
+ * the footer ever goes light again, swap back to /logo-horizontal.png.
+ *
+ * Both legal links point at pages that do not exist yet.
+ */
+---
+
+<footer class="footer">
+	<div class="container footer__inner">
+		<img
+			class="footer__logo"
+			src="/logo-horizontal-white.png"
+			alt={site.name}
+			width="1966"
+			height="1007"
+			decoding="async"
+		/>
+	</div>
+
+	<div class="container footer__base">
+		<nav class="footer__links" aria-label="Legal">
+			<a class="footer__link" href="/terms">Terms and conditions</a>
+			<a class="footer__link" href="/privacy">Privacy policy</a>
+		</nav>
+		<p class="footer__copy">&copy; {site.year} {site.name}. All rights reserved.</p>
+	</div>
+</footer>
+
+<style>
+	.footer {
+		padding-block: var(--space-xl);
+		background: var(--color-surface-dark);
+		color: var(--color-on-dark);
+	}
+
+	.footer__inner {
+		display: flex;
+		justify-content: center;
+	}
+
+	/* The source file carries a lot of empty margin around the mark, so the box
+	   has to be large before the logo itself reads as large. */
+	.footer__logo {
+		width: clamp(18rem, 62vw, 48rem);
+		height: auto;
+	}
+
+	.footer__base {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-xs) var(--space-lg);
+		margin-block-start: var(--space-lg);
+		padding-block-start: var(--space-md);
+		border-block-start: 1px solid color-mix(in srgb, var(--color-on-dark) 18%, transparent);
+		font-size: var(--text-sm);
+	}
+
+	.footer__links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-xs) var(--space-md);
+	}
+
+	.footer__link {
+		color: var(--color-on-dark);
+		font-weight: var(--weight-medium);
+		text-underline-offset: 0.25em;
+	}
+
+	.footer__link:hover {
+		/* The bright brand green, which only works against a dark field. */
+		color: var(--color-brand);
+	}
+
+	.footer__copy {
+		color: color-mix(in srgb, var(--color-on-dark) 65%, transparent);
+	}
+
+	@media (max-width: 40rem) {
+		.footer__base,
+		.footer__links {
+			justify-content: center;
+			text-align: center;
+		}
+	}
+</style>

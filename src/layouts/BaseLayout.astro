@@ -1,0 +1,40 @@
+---
+import "../styles/global.css";
+
+interface Props {
+	/** Shown in the browser tab and in search results. */
+	title: string;
+	/** One-sentence summary for search engines and link previews. */
+	description?: string;
+	/** Page language, e.g. "en" or "ar". */
+	lang?: string;
+	/** Text direction: "ltr" for English, "rtl" for Arabic. */
+	dir?: "ltr" | "rtl";
+}
+
+const {
+	title,
+	description = "",
+	lang = "en",
+	dir = "ltr",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang={lang} dir={dir}>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
+		<link rel="apple-touch-icon" href="/icon-180.png" />
+		<title>{title}</title>
+		{description && <meta name="description" content={description} />}
+		<meta property="og:title" content={title} />
+		{description && <meta property="og:description" content={description} />}
+		<meta property="og:type" content="website" />
+		<slot name="head" />
+	</head>
+	<body>
+		<slot />
+	</body>
+</html>

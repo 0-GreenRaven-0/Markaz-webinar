@@ -1,0 +1,311 @@
+---
+import { projects } from "../data/projects";
+
+/**
+ * The play button is a low-poly disc: a jittered polygon approximating a
+ * circle, triangulated into two rings plus a centre cap so the facets tile it
+ * completely with no gaps.
+ *
+ * Greens are the same set sampled from the brand flag artwork that the CTA
+ * button uses. The icon is white, and white only clears the 3:1 an icon needs
+ * on the darker half of that set — so facets near the middle, where the icon
+ * sits, are drawn from the deeper tones and the lighter ones ring the outside.
+ * Same trick as the CTA, and it reads as a flag-like shading either way.
+ */
+const SEGMENTS = 8;
+/** Lighter flag tones, for the outer facets. */
+const LIGHT = ["p1", "p2", "p3", "p4"] as const;
+/** Deeper flag tones, for the middle where the white icon sits. */
+const DARK = ["p5", "p6", "p7"] as const;
+
+function mulberry32(a: number) {
+	return function () {
+		a |= 0;
+		a = (a + 0x6d2b79f5) | 0;
+		let t = Math.imul(a ^ (a >>> 15), 1 | a);
+		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
+}
+
+const rand = mulberry32(90210);
+const r1 = (n: number) => Math.round(n * 10) / 10;
+
+type Pt = [number, number];
+const outer: Pt[] = [];
+const inner: Pt[] = [];
+
+for (let i = 0; i < SEGMENTS; i++) {
+	const a = (i / SEGMENTS) * Math.PI * 2;
+	const ro = 47 + (rand() - 0.5) * 8;
+	outer.push([50 + Math.cos(a) * ro, 50 + Math.sin(a) * ro]);
+
+	// Inner ring is offset half a step, so the facets interlock rather than
+	// forming neat pie slices.
+	const b = ((i + 0.5) / SEGMENTS) * Math.PI * 2;
+	const ri = 25 + (rand() - 0.5) * 10;
+	inner.push([50 + Math.cos(b) * ri, 50 + Math.sin(b) * ri]);
+}
+
+const discFacets: { points: string; tone: string }[] = [];
+const centre: Pt = [50 + (rand() - 0.5) * 4, 50 + (rand() - 0.5) * 4];
+
+for (let i = 0; i < SEGMENTS; i++) {
+	const o1 = outer[i];
+	const o2 = outer[(i + 1) % SEGMENTS];
+	const i1 = inner[i];
+	const i2 = inner[(i + 1) % SEGMENTS];
+	for (const tri of [
+		[o1, o2, i1],
+		[o2, i2, i1],
+		[i1, i2, centre],
+	] as Pt[][]) {
+		// Pick the palette from how close the facet sits to the middle, so the
+		// icon always lands on the darker tones.
+		const cx = (tri[0][0] + tri[1][0] + tri[2][0]) / 3;
+		const cy = (tri[0][1] + tri[1][1] + tri[2][1]) / 3;
+		const fromCentre = Math.hypot(cx - 50, cy - 50);
+		const palette = fromCentre < 26 ? DARK : LIGHT;
+		discFacets.push({
+			points: tri.map((p) => `${r1(p[0])},${r1(p[1])}`).join(" "),
+			tone: palette[Math.floor(rand() * palette.length)],
+		});
+	}
+}
+---
+
+<section class="projects" id="projects">
+	<div class="container projects__inner">
+		<header class="projects__head">
+			<h2>Check out our Student's projects</h2>
+		</header>
+
+		<ul class="projects__grid" role="list">
+			{
+				projects.map((project) => (
+					<li class="project">
+						<div class="project__frame" data-player>
+							{/*
+								preload="none" means nothing downloads until the visitor
+								presses play — the page loads with just the poster image.
+							*/}
+							<video
+								class="project__video"
+								src={project.src}
+								poster={project.poster}
+								preload="none"
+								playsinline
+								controls
+								aria-label={project.title}
+							/>
+							<button class="project__play" type="button" data-play>
+								<span class="visually-hidden">Play {project.title}</span>
+								<span class="project__disc">
+									<svg
+										class="project__disc-poly"
+										viewBox="0 0 100 100"
+										aria-hidden="true"
+										focusable="false"
+									>
+										{discFacets.map((f) => (
+											<polygon class={`pfacet pfacet--${f.tone}`} points={f.points} />
+										))}
+									</svg>
+									<svg
+										class="project__disc-icon"
+										viewBox="0 0 24 24"
+										aria-hidden="true"
+										focusable="false"
+									>
+										<path d="M9 5.5v13l10-6.5z" fill="currentColor" />
+									</svg>
+								</span>
+							</button>
+						</div>
+					</li>
+				))
+			}
+		</ul>
+	</div>
+</section>
+
+<script>
+	for (const player of document.querySelectorAll<HTMLElement>("[data-player]")) {
+		const video = player.querySelector<HTMLVideoElement>("video");
+		const button = player.querySelector<HTMLButtonElement>("[data-play]");
+		if (!video || !button) continue;
+
+		/*
+			The browser draws its own play button over a paused video that has
+			`controls`, which sat on top of the poster next to ours — two play
+			buttons on the same frame. The attribute is in the markup as the
+			fallback for a visitor with JavaScript off, and taken straight back off
+			here, so only the low-poly button shows. The native controls are handed
+			back the moment the video starts, for scrubbing and volume.
+		*/
+		video.controls = false;
+
+		button.addEventListener("click", () => {
+			player.dataset.state = "playing";
+			video.play().catch(() => {
+				// Autoplay policies can refuse; put the poster and our button back.
+				player.dataset.state = "";
+				video.controls = false;
+			});
+		});
+
+		// Pause every other video so two never play at once.
+		video.addEventListener("play", () => {
+			player.dataset.state = "playing";
+			video.controls = true;
+			for (const other of document.querySelectorAll<HTMLVideoElement>("[data-player] video")) {
+				if (other !== video) other.pause();
+			}
+		});
+
+		video.addEventListener("pause", () => {
+			// Only a video back at the start shows the poster again; one paused
+			// part-way keeps its native controls so it can be resumed.
+			if (video.currentTime === 0 || video.ended) {
+				player.dataset.state = "";
+				video.controls = false;
+			}
+		});
+
+		video.addEventListener("ended", () => {
+			player.dataset.state = "";
+			video.controls = false;
+		});
+	}
+</script>
+
+<style>
+	.projects {
+		position: relative;
+		overflow: hidden;
+		padding-block: var(--space-3xl);
+	}
+
+	.projects__inner {
+		/* Above the decorative facets. */
+		position: relative;
+		z-index: 1;
+	}
+
+	.projects__head {
+		margin-block-end: var(--space-2xl);
+		text-align: center;
+	}
+
+	.projects__head h2 {
+		font-size: var(--text-3xl);
+	}
+
+	.projects__grid {
+		/* One per row — no grid. */
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: var(--space-2xl);
+		/* Held in from the full column width so they do not dominate the page. */
+		max-width: 54rem;
+		margin-inline: auto;
+	}
+
+	.project__frame {
+		position: relative;
+		aspect-ratio: 16 / 9;
+		overflow: hidden;
+		background: var(--color-surface-dark);
+		border: 4px solid var(--color-brand);
+	}
+
+	.project__video {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.project__play {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		width: 100%;
+		height: 100%;
+		border: 0;
+		background: color-mix(in srgb, var(--color-surface-dark) 32%, transparent);
+		transition: background-color 150ms ease;
+	}
+
+	.project__play:hover {
+		background: color-mix(in srgb, var(--color-surface-dark) 14%, transparent);
+	}
+
+	.project__disc {
+		position: relative;
+		display: grid;
+		place-items: center;
+		width: 4.5rem;
+		height: 4.5rem;
+		transition: transform 150ms ease;
+	}
+
+	.project__play:hover .project__disc {
+		transform: scale(1.07);
+	}
+
+	.project__disc-poly {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		filter: drop-shadow(0 4px 10px color-mix(in srgb, var(--color-text) 45%, transparent));
+	}
+
+	.project__disc-icon {
+		position: relative;
+		width: 1.9rem;
+		height: 1.9rem;
+		color: var(--color-text-on-brand);
+	}
+
+	/* The same greens sampled from the flag artwork as the CTA button. */
+	.pfacet--p1 {
+		fill: #98d33b;
+	}
+
+	.pfacet--p2 {
+		fill: #8bca31;
+	}
+
+	.pfacet--p3 {
+		fill: #7ebe2a;
+	}
+
+	.pfacet--p4 {
+		fill: #6fae1f;
+	}
+
+	.pfacet--p5 {
+		fill: #589c11;
+	}
+
+	.pfacet--p6 {
+		fill: #498815;
+	}
+
+	.pfacet--p7 {
+		fill: #3b7312;
+	}
+
+	/* Once playing, hand over to the native video controls. */
+	.project__frame[data-state="playing"] .project__play {
+		display: none;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.project__disc {
+			transition: none;
+		}
+	}
+</style>

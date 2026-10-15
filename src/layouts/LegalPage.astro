@@ -1,0 +1,110 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+
+/**
+ * The shared frame for the privacy policy and the terms.
+ *
+ * These pages are long prose, which the landing page has none of, so the
+ * reading styles live here rather than being written twice. Everything is a
+ * token — the pages inherit the site's type, colour and spacing, so they do not
+ * drift away from the rest of the site when something changes.
+ */
+interface Props {
+	title: string;
+	description: string;
+	heading: string;
+	updated?: string;
+}
+
+const { title, description, heading, updated } = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+	<main class="legal">
+		<div class="container legal__inner">
+			<a class="legal__back" href="/">&larr; Back to the webinar</a>
+
+			<h1 class="legal__title">{heading}</h1>
+			{updated && <p class="legal__updated">Last updated: {updated}</p>}
+
+			<div class="legal__body">
+				<slot />
+			</div>
+		</div>
+	</main>
+</BaseLayout>
+
+<SiteFooter />
+
+<style>
+	.legal {
+		padding-block: var(--space-xl) var(--space-3xl);
+	}
+
+	.legal__inner {
+		max-width: var(--measure);
+	}
+
+	.legal__back {
+		display: inline-block;
+		margin-block-end: var(--space-lg);
+		font-size: var(--text-sm);
+		font-weight: var(--weight-semibold);
+		color: var(--color-brand-strong);
+	}
+
+	.legal__title {
+		text-transform: uppercase;
+	}
+
+	.legal__updated {
+		margin-block-start: var(--space-2xs);
+		font-size: var(--text-sm);
+		color: var(--color-text-muted);
+	}
+
+	.legal__body {
+		margin-block-start: var(--space-xl);
+		display: grid;
+		gap: var(--space-lg);
+	}
+
+	/* Styled from here rather than in each page, so the prose below is plain
+	   headings and paragraphs with no classes to keep track of. */
+	.legal__body :global(h2) {
+		font-size: var(--text-xl);
+		margin-block-end: var(--space-2xs);
+	}
+
+	.legal__body :global(p) {
+		color: var(--color-text-muted);
+	}
+
+	.legal__body :global(p + p),
+	.legal__body :global(ul + p) {
+		margin-block-start: var(--space-sm);
+	}
+
+	.legal__body :global(ul) {
+		display: grid;
+		gap: var(--space-2xs);
+		margin-block-start: var(--space-sm);
+		padding-inline-start: var(--space-md);
+		color: var(--color-text-muted);
+	}
+
+	.legal__body :global(li::marker) {
+		color: var(--color-brand-strong);
+	}
+
+	.legal__body :global(strong) {
+		color: var(--color-text);
+		font-weight: var(--weight-semibold);
+	}
+
+	.legal__body :global(a) {
+		color: var(--color-brand-strong);
+		font-weight: var(--weight-medium);
+	}
+</style>

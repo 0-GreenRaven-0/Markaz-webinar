@@ -1,0 +1,622 @@
+---
+import CountrySelect from "./CountrySelect.astro";
+
+/**
+ * The submit button is filled with a low-poly facet pattern, built from a
+ * jittered grid so the triangles tile it completely with no gaps.
+ *
+ * The greens are sampled directly out of the brand flag artwork, so they are
+ * the exact tones in that image rather than an approximation.
+ *
+ * The label is white, which is what the flag artwork does. Most of these
+ * greens are too light to carry white text on their own, so the facets behind
+ * the label are drawn from the darker end of the set and the lighter tones are
+ * pushed to the top and bottom bands. That also mimics how a real flag shades
+ * through its folds.
+ *
+ * Points on the outer boundary are bitten inward at random, so the silhouette
+ * is ragged like a torn flag rather than a clean rectangle.
+ */
+const BTN_W = 320;
+const BTN_H = 64;
+const COLS = 11;
+const ROWS = 3;
+/** How far boundary points may bite into the rectangle. */
+const RAG_X = 9;
+const RAG_Y = 7;
+
+/** Lighter flag tones — used in the top and bottom bands. */
+const LIGHT_FACETS = ["g1", "g2", "g2", "g3", "g3", "g4"] as const;
+/** Deeper flag tones — used in the middle band, behind the label. */
+const DARK_FACETS = ["g4", "g5", "g5", "g6", "g6", "g7"] as const;
+
+function mulberry32(a: number) {
+	return function () {
+		a |= 0;
+		a = (a + 0x6d2b79f5) | 0;
+		let t = Math.imul(a ^ (a >>> 15), 1 | a);
+		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
+}
+
+const rand = mulberry32(424242);
+const r1 = (n: number) => Math.round(n * 10) / 10;
+
+const cellW = BTN_W / COLS;
+const cellH = BTN_H / ROWS;
+const grid: [number, number][][] = [];
+
+for (let r = 0; r <= ROWS; r++) {
+	grid[r] = [];
+	for (let c = 0; c <= COLS; c++) {
+		const onLeft = c === 0;
+		const onRight = c === COLS;
+		const onTop = r === 0;
+		const onBottom = r === ROWS;
+
+		let x = (c / COLS) * BTN_W;
+		let y = (r / ROWS) * BTN_H;
+
+		if (!onLeft && !onRight) x += (rand() - 0.5) * cellW * 0.8;
+		if (!onTop && !onBottom) y += (rand() - 0.5) * cellH * 0.8;
+
+		// Bite the silhouette inward only, so it can never overflow its box.
+		if (onLeft) x += rand() * RAG_X;
+		if (onRight) x -= rand() * RAG_X;
+		if (onTop) y += rand() * RAG_Y;
+		if (onBottom) y -= rand() * RAG_Y;
+
+		if ((onTop || onBottom) && !onLeft && !onRight) x += (rand() - 0.5) * cellW * 0.6;
+		if ((onLeft || onRight) && !onTop && !onBottom) y += (rand() - 0.5) * cellH * 0.6;
+
+		grid[r][c] = [x, y];
+	}
+}
+
+const triangles: { points: string; tone: string }[] = [];
+for (let r = 0; r < ROWS; r++) {
+	for (let c = 0; c < COLS; c++) {
+		const a = grid[r][c];
+		const b = grid[r][c + 1];
+		const d = grid[r + 1][c + 1];
+		const e = grid[r + 1][c];
+		const pair =
+			rand() > 0.5
+				? [
+						[a, b, d],
+						[a, d, e],
+					]
+				: [
+						[a, b, e],
+						[b, d, e],
+					];
+		// The middle band sits behind the label, so it draws from the deeper tones.
+		const palette = r === Math.floor(ROWS / 2) ? DARK_FACETS : LIGHT_FACETS;
+		for (const tri of pair) {
+			triangles.push({
+				points: tri.map((p) => `${r1(p[0])},${r1(p[1])}`).join(" "),
+				tone: palette[Math.floor(rand() * palette.length)],
+			});
+		}
+	}
+}
+---
+
+<form class="form" novalidate>
+	<div class="field">
+		<label class="field__label" for="full-name">Full name</label>
+		<div class="field__box">
+			<input
+				class="field__input"
+				id="full-name"
+				name="full_name"
+				type="text"
+				placeholder="Your first and last name"
+				autocomplete="name"
+				required
+				aria-describedby="name-error"
+			/>
+		</div>
+		<p class="field__error" id="name-error" data-error-for="full_name"></p>
+	</div>
+
+	<div class="field">
+		<label class="field__label" for="email">Email</label>
+		<div class="field__box">
+			<input
+				class="field__input"
+				id="email"
+				name="email"
+				type="email"
+				inputmode="email"
+				autocomplete="email"
+				required
+				aria-describedby="email-error"
+			/>
+		</div>
+		<p class="field__error" id="email-error" data-error-for="email"></p>
+		{/*
+			Offered when the domain looks like a near miss for a common provider —
+			"gmial.com", "hotmai.com". Nothing is ever rewritten automatically: the
+			visitor taps the suggestion or ignores it. A mistyped address is the
+			most common way a real person never receives the webinar link.
+		*/}
+		<p class="field__suggest" data-suggest hidden>
+			Did you mean <button class="field__suggest-btn" type="button" data-suggest-btn></button>?
+		</p>
+	</div>
+
+	<div class="field">
+		<label class="field__label" for="phone">Phone number</label>
+		<div class="phone">
+			<CountrySelect />
+			<div class="field__box">
+				<input
+					class="field__input"
+					id="phone"
+					name="phone"
+					type="tel"
+					inputmode="tel"
+					autocomplete="tel-national"
+					placeholder="70 123 456"
+					required
+					aria-describedby="phone-error"
+				/>
+			</div>
+		</div>
+		<p class="field__error" id="phone-error" data-error-for="phone"></p>
+	</div>
+
+	{/* Hidden from people, visible to bots. The server drops anything that fills it. */}
+	<div class="form__trap" aria-hidden="true">
+		<label for="company">Company</label>
+		<input id="company" name="company" type="text" tabindex="-1" autocomplete="off" />
+	</div>
+
+	<button class="form__submit" type="submit">
+		<svg
+			class="form__submit-poly"
+			viewBox={`0 0 ${BTN_W} ${BTN_H}`}
+			preserveAspectRatio="none"
+			aria-hidden="true"
+			focusable="false"
+		>
+			{triangles.map((t) => <polygon class={`gfacet gfacet--${t.tone}`} points={t.points} />)}
+		</svg>
+		<span class="form__submit-label" data-submit-label>Claim my seat</span>
+	</button>
+
+	<p class="form__warning">Replays aren't guaranteed so be sure to attend</p>
+
+	<p class="form__status" role="status" aria-live="polite" data-status></p>
+</form>
+
+
+
+<script>
+	const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+	/* The providers our visitors actually use. */
+	const KNOWN_DOMAINS = [
+		"gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com",
+		"live.com", "hotmail.co.uk", "outlook.fr", "windowslive.com",
+	];
+
+	/* Levenshtein, capped: past 2 edits it is a different domain, not a typo. */
+	const distance = (a: string, b: string): number => {
+		if (Math.abs(a.length - b.length) > 2) return 99;
+		let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+		for (let i = 1; i <= a.length; i++) {
+			const curr = [i];
+			for (let k = 1; k <= b.length; k++) {
+				curr[k] = Math.min(
+					prev[k] + 1,
+					curr[k - 1] + 1,
+					prev[k - 1] + (a[i - 1] === b[k - 1] ? 0 : 1),
+				);
+			}
+			prev = curr;
+		}
+		return prev[b.length];
+	};
+
+	/**
+	 * The whole corrected address, or null when the domain is already one we
+	 * know, is too far from any of them, or is not an address yet.
+	 */
+	const suggestEmail = (value: string): string | null => {
+		const email = (value || "").trim().toLowerCase();
+		const at = email.lastIndexOf("@");
+		if (at < 1 || at === email.length - 1) return null;
+		const local = email.slice(0, at);
+		const domain = email.slice(at + 1);
+		// A domain of four characters or fewer is within two edits of far too much.
+		if (!domain.includes(".") || domain.length < 5) return null;
+		if (KNOWN_DOMAINS.includes(domain)) return null;
+
+		let best: string | null = null;
+		let bestDistance = 3;
+		for (const candidate of KNOWN_DOMAINS) {
+			const d = distance(domain, candidate);
+			if (d < bestDistance) {
+				bestDistance = d;
+				best = candidate;
+			}
+		}
+		return best ? `${local}@${best}` : null;
+	};
+
+	for (const form of document.querySelectorAll<HTMLFormElement>(".form")) {
+		const statusEl = form.querySelector<HTMLElement>("[data-status]");
+		const submitEl = form.querySelector<HTMLButtonElement>(".form__submit");
+		// The label is its own element: writing to the button's textContent would
+		// wipe out the SVG facets behind it.
+		const labelEl = form.querySelector<HTMLElement>("[data-submit-label]");
+		const combo = form.querySelector<HTMLElement>("[data-combo]");
+
+		const setError = (name: string, message: string) => {
+			const field = form.querySelector<HTMLElement>(`[name="${name}"]`);
+			const errorEl = form.querySelector<HTMLElement>(`[data-error-for="${name}"]`);
+			if (errorEl) errorEl.textContent = message;
+			field?.setAttribute("aria-invalid", message ? "true" : "false");
+			field?.closest(".field")?.toggleAttribute("data-invalid", Boolean(message));
+		};
+
+		/** "Ada  Lovelace King" -> first "Ada", last "Lovelace King". */
+		const splitName = (full: string) => {
+			const parts = full.trim().split(/\s+/);
+			return { first: parts[0] ?? "", last: parts.slice(1).join(" ") };
+		};
+
+		const validate = () => {
+			const data = new FormData(form);
+			const full = String(data.get("full_name") ?? "").trim();
+			const email = String(data.get("email") ?? "").trim();
+			const phone = String(data.get("phone") ?? "").trim();
+			const errors: Record<string, string> = {};
+
+			const { first, last } = splitName(full);
+			if (first.length < 2 || last.length < 1) {
+				errors.full_name = "Please enter your first and last name.";
+			}
+			if (!EMAIL_RE.test(email)) errors.email = "Please enter a valid email address.";
+
+			const digits = phone.replace(/\D/g, "");
+			if (digits.length < 6 || digits.length > 15) {
+				errors.phone = "Please enter a valid phone number.";
+			}
+
+			for (const name of ["full_name", "email", "phone"]) {
+				setError(name, errors[name] ?? "");
+			}
+			return { errors, data };
+		};
+
+		// The "did you mean" line under the email field.
+		const emailEl = form.querySelector<HTMLInputElement>('[name="email"]');
+		const suggestEl = form.querySelector<HTMLElement>("[data-suggest]");
+		const suggestBtn = form.querySelector<HTMLButtonElement>("[data-suggest-btn]");
+
+		const hideSuggestion = () => suggestEl?.setAttribute("hidden", "");
+
+		if (emailEl && suggestEl && suggestBtn) {
+			// On leaving the field, not while typing: every half-finished address
+			// looks like a typo.
+			emailEl.addEventListener("blur", () => {
+				const guess = suggestEmail(emailEl.value);
+				if (guess) {
+					suggestBtn.textContent = guess;
+					suggestEl.removeAttribute("hidden");
+				} else {
+					hideSuggestion();
+				}
+			});
+			emailEl.addEventListener("input", hideSuggestion);
+			suggestBtn.addEventListener("click", () => {
+				emailEl.value = suggestBtn.textContent ?? emailEl.value;
+				hideSuggestion();
+				setError("email", "");
+				emailEl.focus();
+			});
+		}
+
+		// Clear a field's error as soon as the visitor fixes it.
+		form.addEventListener("input", (e) => {
+			const target = e.target as HTMLInputElement;
+			if (target.name && target.closest(".field")?.hasAttribute("data-invalid")) {
+				validate();
+			}
+		});
+
+		form.addEventListener("submit", async (e) => {
+			e.preventDefault();
+			const { errors, data } = validate();
+
+			if (Object.keys(errors).length > 0) {
+				form.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus();
+				if (statusEl) {
+					statusEl.dataset.tone = "error";
+					statusEl.textContent = "Please fix the highlighted fields.";
+				}
+				return;
+			}
+
+			const full = String(data.get("full_name") ?? "").trim();
+			const { first, last } = splitName(full);
+			const dial = combo?.dataset.dial ?? "";
+			const phone = String(data.get("phone") ?? "").trim();
+
+			const payload = {
+				// Split as well as whole, so either shape is usable downstream.
+				full_name: full,
+				first_name: first,
+				last_name: last,
+				email: String(data.get("email") ?? "").trim(),
+				country: String(data.get("country") ?? ""),
+				dial_code: dial,
+				phone,
+				phone_full: `${dial} ${phone}`.trim(),
+				// Which headline this visitor saw, so you can tell which one converts.
+				hook_variant: document.documentElement.dataset.hook ?? "",
+				submitted_at: new Date().toISOString(),
+			};
+
+			if (submitEl) submitEl.disabled = true;
+			if (labelEl) labelEl.textContent = "Sending…";
+
+			const done = (tone: "success" | "error", message: string) => {
+				if (statusEl) {
+					statusEl.dataset.tone = tone;
+					statusEl.textContent = message;
+				}
+				if (submitEl) submitEl.disabled = false;
+				if (labelEl) labelEl.textContent = "Claim my seat";
+			};
+
+			try {
+				const res = await fetch("/api/subscribe", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(payload),
+				});
+				const result = (await res.json().catch(() => ({}))) as { error?: string };
+
+				if (!res.ok) {
+					const message = result.error || "Something went wrong. Please try again in a moment.";
+					// 422 is the email check turning the address down. Put the reason on
+					// the field itself so it is obvious which one to fix.
+					if (res.status === 422) {
+						setError("email", message);
+						emailEl?.focus();
+					}
+					done("error", message);
+					return;
+				}
+
+				done("success", "Thank you — your seat request is in. We will be in touch shortly.");
+				form.reset();
+			} catch {
+				done("error", "Could not reach the server. Please check your connection and try again.");
+			}
+		});
+	}
+</script>
+
+<style>
+	.form {
+		display: grid;
+		gap: var(--space-sm);
+		/* Leaning boxes stick out sideways; this keeps them off the edges. */
+		padding-inline: var(--space-2xs);
+	}
+
+	.field {
+		display: grid;
+		gap: var(--space-3xs);
+	}
+
+	.field__label {
+		/* Francker, matching the headlines. */
+		font-family: var(--font-heading);
+		font-weight: var(--weight-heading);
+		font-size: var(--text-sm);
+		color: var(--color-text);
+	}
+
+	/* The box carries the border and the lean; the input inside stays upright. */
+	.field__box {
+		display: flex;
+		/* Sharp corners and a heavy edge, matching the brand parallelogram. */
+		border: 2px solid var(--color-text);
+		border-radius: 0;
+		background: var(--color-bg);
+		transform: skewX(var(--field-skew));
+	}
+
+	.field__box:focus-within {
+		outline: 2px solid var(--color-focus);
+		outline-offset: 1px;
+		border-color: var(--color-focus);
+	}
+
+	.field[data-invalid] .field__box {
+		border-color: var(--color-danger);
+	}
+
+	.field__input {
+		width: 100%;
+		min-width: 0;
+		padding: var(--space-xs) var(--space-sm);
+		border: 0;
+		background: transparent;
+		color: var(--color-text);
+		font-size: var(--text-base);
+		/* Skewed back, so the text reads straight inside a leaning box. */
+		transform: skewX(calc(var(--field-skew) * -1));
+	}
+
+	.field__input:focus-visible {
+		outline: none;
+	}
+
+	.field__input::placeholder {
+		color: var(--color-text-muted);
+		opacity: 0.75;
+	}
+
+	.field__error {
+		min-height: 1rem;
+		font-size: var(--text-xs);
+		color: var(--color-danger);
+	}
+
+	.field__error:empty {
+		min-height: 0;
+	}
+
+	.field__suggest {
+		font-size: var(--text-xs);
+		color: var(--color-text-muted);
+	}
+
+	/* A button, because it acts on the field — but it reads as the corrected
+	   address, so it is styled as a link rather than a control. */
+	.field__suggest-btn {
+		border: 0;
+		padding: 0;
+		background: none;
+		font-size: inherit;
+		font-weight: var(--weight-semibold);
+		color: var(--color-brand-strong);
+		text-decoration: underline;
+		text-underline-offset: 0.2em;
+	}
+
+	/* Code and number share one line at every width — the select only needs
+	   room for a flag, a dial code and a chevron. */
+	.phone {
+		display: grid;
+		grid-template-columns: minmax(6.25rem, 9rem) 1fr;
+		gap: var(--space-2xs);
+	}
+
+	/* --- Low-poly submit button --- */
+	.form__submit {
+		position: relative;
+		isolation: isolate;
+		margin-block-start: var(--space-2xs);
+		/* Generous padding keeps the label clear of the torn edges. */
+		padding: var(--space-sm) var(--space-xl);
+		border: 0;
+		/* No radius — the ragged facets define the silhouette instead. */
+		border-radius: 0;
+		background: transparent;
+		color: var(--color-text-on-brand);
+		font-size: var(--text-lg);
+		font-weight: var(--weight-bold);
+		transition: transform 150ms ease, filter 150ms ease;
+	}
+
+	.form__submit-poly {
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		width: 100%;
+		height: 100%;
+	}
+
+	.form__submit-label {
+		position: relative;
+		/* A soft dark shadow so the white label holds up over the lighter facets.
+		   It genuinely helps readability, though it does not change the measured
+		   contrast ratio — that is governed by the fill behind the text. */
+		text-shadow: 0 1px 3px color-mix(in srgb, var(--color-text) 55%, transparent);
+	}
+
+	/* Sampled straight from the flag artwork. The ratio is white text on it. */
+	.gfacet--g1 {
+		fill: #98d33b; /* lightest  — white 1.79:1 */
+	}
+
+	.gfacet--g2 {
+		fill: #8bca31; /* white 1.98:1 */
+	}
+
+	.gfacet--g3 {
+		fill: #7ebe2a; /* white 2.26:1 */
+	}
+
+	.gfacet--g4 {
+		fill: #6fae1f; /* dominant  — white 2.71:1 */
+	}
+
+	.gfacet--g5 {
+		fill: #589c11; /* white 3.40:1 */
+	}
+
+	.gfacet--g6 {
+		fill: #498815; /* white 4.36:1 */
+	}
+
+	.gfacet--g7 {
+		fill: #3b7312; /* white 5.76:1 */
+	}
+
+	/* Darkens on hover: brightening would make the white label harder to read. */
+	.form__submit:hover:not(:disabled) {
+		filter: brightness(0.92);
+	}
+
+	.form__submit:active:not(:disabled) {
+		transform: translateY(1px);
+	}
+
+	.form__submit:disabled {
+		opacity: 0.7;
+	}
+
+	.form__warning {
+		margin-block-start: var(--space-3xs);
+		font-family: var(--font-heading);
+		font-weight: var(--weight-heading);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		text-align: center;
+		/* 6.54:1 on white — a brighter red would not be readable at this size. */
+		color: var(--color-danger);
+	}
+
+
+	/* Pulled in a little on phones so it does not run the full width of the
+	   form, and wraps on its own terms. */
+	@media (max-width: 40rem) {
+		.form__warning {
+			max-width: 28ch;
+			margin-inline: auto;
+		}
+	}
+
+	.form__trap {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.form__status {
+		font-size: var(--text-sm);
+		min-height: 1.25rem;
+	}
+
+	.form__status[data-tone="success"] {
+		color: var(--color-brand-strong);
+	}
+
+	.form__status[data-tone="error"] {
+		color: var(--color-danger);
+	}
+</style>

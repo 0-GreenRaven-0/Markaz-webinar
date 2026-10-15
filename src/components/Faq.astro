@@ -1,0 +1,182 @@
+---
+import { faqs } from "../data/faqs";
+---
+
+<section class="faq" id="faq">
+	<div class="container faq__inner">
+		<header class="faq__head">
+			<h2>Frequently asked questions</h2>
+		</header>
+
+		<div class="faq__list">
+			{
+				faqs.map((item) => (
+					/*
+						The shell carries the chamfered outline and the item sits inside it
+						as the fill. Two layers are needed because clip-path cuts a border
+						off along with everything else — the angled corner would come out
+						bare. A navy shell with a white panel inset inside it gives a clean
+						edge all the way round the cut.
+					*/
+					<div class="faq__shell">
+						<details class="faq__item" name="faq">
+							<summary class="faq__question">
+								<span class="faq__text">{item.q}</span>
+								<span class="faq__marker" aria-hidden="true">
+									<svg viewBox="0 0 16 16" focusable="false">
+										<path d="M2 4.5h12L8 12z" fill="currentColor" />
+									</svg>
+								</span>
+							</summary>
+							<div class="faq__answer">
+								{item.a ? <p>{item.a}</p> : <p class="faq__todo">Answer still to be written.</p>}
+							</div>
+						</details>
+					</div>
+				))
+			}
+		</div>
+	</div>
+</section>
+
+<style>
+	.faq {
+		position: relative;
+		overflow: hidden;
+		padding-block: var(--space-3xl);
+
+	}
+
+	.faq__inner {
+		/* Above the decorative facets. */
+		position: relative;
+		z-index: 1;
+		/* One straight column: heading, then the questions beneath it. */
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: var(--space-xl);
+		max-width: 54rem;
+		margin-inline: auto;
+	}
+
+
+	.faq__list {
+		display: grid;
+		gap: var(--space-xs);
+	}
+
+	/* --- Chamfered panel --- */
+	.faq__shell {
+		--cut: 16px;
+		background: var(--color-text);
+		padding: 2px;
+		clip-path: polygon(
+			0 0,
+			calc(100% - var(--cut)) 0,
+			100% var(--cut),
+			100% 100%,
+			var(--cut) 100%,
+			0 calc(100% - var(--cut))
+		);
+		transition: background-color 160ms ease;
+	}
+
+	.faq__shell:hover,
+	.faq__shell:focus-within {
+		background: var(--color-brand-strong);
+	}
+
+	/* Open panels carry the brand green edge. */
+	.faq__shell:has(.faq__item[open]) {
+		background: var(--color-brand);
+	}
+
+	.faq__item {
+		--cut: 15px;
+		background: var(--color-bg);
+		clip-path: polygon(
+			0 0,
+			calc(100% - var(--cut)) 0,
+			100% var(--cut),
+			100% 100%,
+			var(--cut) 100%,
+			0 calc(100% - var(--cut))
+		);
+	}
+
+	.faq__question {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-sm);
+		padding: var(--space-sm) var(--space-md);
+		cursor: pointer;
+		list-style: none;
+	}
+
+	.faq__question::-webkit-details-marker {
+		display: none;
+	}
+
+	.faq__text {
+		font-family: var(--font-body);
+		font-weight: var(--weight-semibold);
+		font-size: var(--text-base);
+	}
+
+	/* A solid triangle rather than a thin chevron — same low-poly language as
+	   the rest of the page. */
+	.faq__marker {
+		display: grid;
+		place-items: center;
+		flex: none;
+		width: 1.75rem;
+		height: 1.75rem;
+		background: var(--color-brand);
+		color: var(--color-on-brand);
+		/* Clipped to a hard-edged tag rather than a circle. */
+		clip-path: polygon(0 0, 100% 0, 100% 70%, 70% 100%, 0 100%);
+		transition: transform 180ms ease, background-color 160ms ease;
+	}
+
+	.faq__marker svg {
+		width: 0.85rem;
+		height: 0.85rem;
+	}
+
+	.faq__item[open] .faq__marker {
+		transform: rotate(180deg);
+	}
+
+	.faq__question:focus-visible {
+		outline: 2px solid var(--color-focus);
+		outline-offset: -4px;
+	}
+
+	.faq__answer {
+		/* No bottom margin here. A margin on the last child collapses out of the
+		   panel, which shortened it and let the coloured shell show through as a
+		   thick band along the bottom. The padding does the spacing instead. */
+		padding: 0 var(--space-md) var(--space-md);
+		color: var(--color-text-muted);
+	}
+
+	/* The answers are full paragraphs now, and the panel is wider than a
+	   comfortable line length. */
+	.faq__answer p {
+		max-width: var(--measure);
+	}
+
+	/* Impossible to miss if one is left unanswered before launch. */
+	.faq__todo {
+		color: var(--color-danger);
+		font-weight: var(--weight-semibold);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.faq__shell,
+		.faq__marker {
+			transition: none;
+		}
+	}
+</style>

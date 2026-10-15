@@ -1,0 +1,175 @@
+---
+import { hooks, subHeadline } from "../data/hooks";
+import SeatsCounter from "./SeatsCounter.astro";
+import Countdown from "./Countdown.astro";
+import SignupForm from "./SignupForm.astro";
+
+/**
+ * The headline A/B test is driven entirely by the list in hooks.ts.
+ *
+ * Both the picker below and the show/hide rules are generated from that list.
+ * Written by hand they fell out of step: the picker went on rolling A, B or C
+ * after the list was cut to one headline, so two loads in three set an id no
+ * <span> matched and the <h1> rendered blank.
+ */
+const hookIds = hooks.map((hook) => hook.id);
+const firstId = hookIds[0];
+
+const pickerJs = `(function () {
+	var KEY = "markaz:hook";
+	var IDS = ${JSON.stringify(hookIds)};
+	var chosen = null;
+	try {
+		chosen = window.sessionStorage.getItem(KEY);
+	} catch (e) {
+		/* private mode or blocked storage - fall through to a fresh pick */
+	}
+	if (IDS.indexOf(chosen) === -1) {
+		chosen = IDS[Math.floor(Math.random() * IDS.length)];
+		try {
+			window.sessionStorage.setItem(KEY, chosen);
+		} catch (e) {
+			/* nothing to do - the headline still renders */
+		}
+	}
+	document.documentElement.setAttribute("data-hook", chosen);
+})();`;
+
+/* Generated rather than typed, so a headline added to hooks.ts shows without a
+   matching rule having to be remembered here. Global because the selectors are
+   built as strings; they can only ever match this component's spans. */
+const hookCss = [
+	".hook { display: none; }",
+	`:root:not([data-hook]) .hook[data-hook-id="${firstId}"] { display: block; }`,
+	...hookIds.map(
+		(id) => `:root[data-hook="${id}"] .hook[data-hook-id="${id}"] { display: block; }`,
+	),
+].join("\n");
+---
+
+{/*
+	Picks this visitor's headline and records it on <html data-hook="...">. It
+	runs before the headline is parsed, so the visitor never sees one headline
+	swap to another.
+
+	The choice is kept in sessionStorage: the same headline for the whole visit,
+	a fresh roll on the next session. With JavaScript off, the first headline in
+	the list shows.
+*/}
+<script is:inline set:html={pickerJs} />
+<style is:global set:html={hookCss}></style>
+
+<section class="hero">
+	<div class="container hero__inner">
+		<h1 class="hero__headline">
+			{
+				hooks.map((hook) => (
+					<span class="hook" data-hook-id={hook.id}>
+						{hook.text}
+					</span>
+				))
+			}
+		</h1>
+
+		<p class="hero__sub">{subHeadline}</p>
+
+		<div class="hero__stats">
+			<Countdown />
+			<span class="hero__stats-divider" aria-hidden="true"></span>
+			<SeatsCounter />
+		</div>
+
+		<div class="hero__form">
+			<SignupForm />
+		</div>
+	</div>
+</section>
+
+<style>
+	.hero {
+		position: relative;
+		overflow: hidden;
+		color: var(--color-text);
+		padding-block: var(--space-lg) var(--space-3xl);
+	}
+
+	/* One vertical column, centred, in the order: headline, sub, counter, form. */
+	.hero__inner {
+		/* Sits above the decorative facets. */
+		position: relative;
+		z-index: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		gap: var(--space-md);
+	}
+
+	.hero__headline {
+		font-size: var(--text-3xl);
+		font-weight: var(--weight-heading);
+		/* Uppercased in CSS, not in hooks.ts, so the headlines stay readable to
+		   edit and screen readers still announce normal sentences. */
+		text-transform: uppercase;
+		/* Caps need a touch more room than the tighter setting lower case took. */
+		letter-spacing: -0.005em;
+		max-width: 20ch;
+	}
+
+	/* Desktop has the room for longer lines, so the headline is allowed to run
+	   wider and take fewer of them. */
+	@media (min-width: 64rem) {
+		.hero__headline {
+			max-width: 32ch;
+		}
+	}
+
+	/* Which headline is shown is decided by the generated rules above, built
+	   from hooks.ts. Nothing about it is written out by hand here. */
+
+	.hero__stats {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-wrap: wrap;
+		gap: var(--space-sm);
+	}
+
+	.hero__stats-divider {
+		width: 3px;
+		align-self: stretch;
+		background: var(--color-text);
+	}
+
+	/* On a narrow screen the two stack, so a vertical rule makes no sense. */
+	@media (max-width: 40rem) {
+		.hero__stats-divider {
+			display: none;
+		}
+	}
+
+	.hero__sub {
+		font-size: var(--text-sm);
+		color: var(--color-text);
+		max-width: 52ch;
+	}
+
+	/* Phone screens: the headline is uppercase and the column is narrow, so a
+	   step down each keeps it from eating the screen before the form. */
+	@media (max-width: 40rem) {
+		.hero__headline {
+			font-size: var(--text-2xl);
+		}
+
+		.hero__sub {
+			font-size: var(--text-xs);
+		}
+	}
+
+	.hero__form {
+		width: 100%;
+		max-width: 34rem;
+		margin-block-start: var(--space-sm);
+		text-align: start;
+	}
+</style>
