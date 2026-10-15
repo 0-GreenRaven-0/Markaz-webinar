@@ -29,11 +29,9 @@ import { site, webinarDate } from "../data/config";
 		<!-- Confirmed -->
 		<div class="confirm__state" data-state-ok hidden>
 			<span class="confirm__mark confirm__mark--ok" aria-hidden="true">&check;</span>
-			<h1 class="confirm__title">You're confirmed! See you at the webinar</h1>
+			<h1 class="confirm__title">You're confirmed!</h1>
+			<p class="confirm__lead">Thank you — you're registered for the webinar.</p>
 			<p class="confirm__when">{webinarDate}</p>
-			<a class="confirm__button" href="#" download="markaz-webinar.ics" data-calendar>
-				Add to calendar
-			</a>
 		</div>
 
 		<!-- Could not confirm -->
@@ -55,7 +53,7 @@ import { site, webinarDate } from "../data/config";
 </OutcomePage>
 
 <script>
-	import { confirmEndpoint, webinarAt, webinarDurationMinutes, site } from "../data/config";
+	import { confirmEndpoint, site } from "../data/config";
 	import { track, once } from "../lib/pixel";
 
 	const root = document.querySelector<HTMLElement>("[data-confirm]");
@@ -83,43 +81,6 @@ import { site, webinarDate } from "../data/config";
 		const raw = new URLSearchParams(window.location.search).get("email") ?? "";
 		const email = raw.replace(/ /g, "+").trim();
 
-		/* The calendar invite is built from the date in config.ts, so it can
-		   never drift from what the rest of the site says. */
-		const attachCalendar = () => {
-			const link = root.querySelector<HTMLAnchorElement>("[data-calendar]");
-			if (!link) return;
-
-			const start = new Date(webinarAt);
-			if (Number.isNaN(start.getTime())) {
-				link.hidden = true;
-				return;
-			}
-			const end = new Date(start.getTime() + webinarDurationMinutes * 60_000);
-			const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-
-			// Real CRLF line endings: some calendar apps reject an .ics without them.
-			const ics = [
-				"BEGIN:VCALENDAR",
-				"VERSION:2.0",
-				`PRODID:-//${site.name}//Webinar//EN`,
-				"BEGIN:VEVENT",
-				`UID:webinar-${start.getTime()}@markazstudios.com`,
-				`DTSTAMP:${stamp(new Date())}`,
-				`DTSTART:${stamp(start)}`,
-				`DTEND:${stamp(end)}`,
-				`SUMMARY:${site.name} — free game development webinar`,
-				"DESCRIPTION:Your place is confirmed. The joining link is in your email.",
-				"END:VEVENT",
-				"END:VCALENDAR",
-			].join("\r\n");
-
-			// charset declared: the summary carries a dash that is not ASCII, and
-			// without it some desktop clients render it as mojibake.
-			link.href = URL.createObjectURL(
-				new Blob([ics], { type: "text/calendar;charset=utf-8" }),
-			);
-		};
-
 		const confirm = async () => {
 			if (!email) {
 				show("failed", "We could not confirm your email.");
@@ -140,7 +101,6 @@ import { site, webinarDate } from "../data/config";
 				const data = (await res.json()) as { ok?: boolean; updated?: number };
 
 				if (res.ok && data.ok) {
-					attachCalendar();
 					show("ok", "You are confirmed. See you at the webinar.");
 					/*
 						CompleteRegistration: the address is real and the row on the

@@ -11,6 +11,12 @@ import { seatsRemaining } from "../data/config";
  *
  * `data-seats-fallback` is the configured number, used only if that request
  * fails. A slightly stale count is harmless; an empty hero is not.
+ *
+ * After the first load it keeps asking, every POLL_MS, for as long as the
+ * page is open and the tab is in front — so a row deleted from the sheet
+ * while someone is sitting on the page hands their spot back without them
+ * having to reload. /api/seats recomputes the figure from the sheet's current
+ * row count on every call; nothing here assumes the number only goes down.
  */
 ---
 
@@ -32,6 +38,10 @@ import { seatsRemaining } from "../data/config";
 	/* The loader is held briefly even on a fast answer. A counter that flashes
 	   through three states in 80ms reads as a glitch rather than as loading. */
 	const MIN_LOADER_MS = 600;
+	/* How often the page asks again once it has an answer. Matches the 30s
+	   edge cache on /api/seats, so a poll either gets a fresh number or costs
+	   nothing — there is no point asking faster than the number can change. */
+	const POLL_MS = 30_000;
 
 	for (const el of document.querySelectorAll<HTMLElement>(".seats")) {
 		const numberEl = el.querySelector<HTMLElement>("[data-seats-number]");
@@ -40,50 +50,101 @@ import { seatsRemaining } from "../data/config";
 		if (!numberEl) continue;
 
 		const startedAt = performance.now();
+		const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		/* What the box currently shows, so a later update animates from there
+		   rather than from zero. Zero only ever describes the very first paint. */
+		let shown = 0;
+		let frame = 0;
 
-		const reveal = (target: number) => {
-			if (!Number.isFinite(target) || target < 0) return;
+		const animateTo = (target: number) => {
+			cancelAnimationFrame(frame);
 
-			// Pin the box to the width of the final number so counting up cannot
-			// shove the label sideways.
+			// Pin the box to the width of the new number so it cannot shove the
+			// label sideways as the digit count changes.
 			el.style.setProperty("--seats-digits", String(String(target).length));
-			el.dataset.state = "ready";
-			el.setAttribute("aria-busy", "false");
 			if (statusEl) statusEl.textContent = `${target} seats remaining`;
 
-			if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			if (reduceMotion) {
 				numberEl.textContent = String(target);
+				shown = target;
 				return;
 			}
 
+			const from = shown;
+			const delta = target - from;
 			const start = performance.now();
 			const tick = (now: number) => {
 				const t = Math.min((now - start) / EASE_MS, 1);
 				// easeOutCubic — fast at first, settling at the end
 				const eased = 1 - Math.pow(1 - t, 3);
-				numberEl.textContent = String(Math.round(eased * target));
+				const value = Math.round(from + delta * eased);
+				numberEl.textContent = String(value);
+				shown = value;
 				if (t < 1) {
-					requestAnimationFrame(tick);
+					frame = requestAnimationFrame(tick);
 				} else {
 					numberEl.textContent = String(target);
+					shown = target;
 				}
 			};
-			requestAnimationFrame(tick);
+			frame = requestAnimationFrame(tick);
 		};
 
-		const finish = (target: number) => {
+		/* The loading dots are only ever shown for the very first answer. Every
+		   later poll updates the number in place, with no loading state —
+		   showing dots every 30 seconds would read as the page stalling. */
+		const revealFirst = (target: number) => {
+			el.dataset.state = "ready";
+			el.setAttribute("aria-busy", "false");
+			animateTo(target);
+		};
+
+		const ask = (): Promise<number | null> =>
+			fetch("/api/seats", { headers: { accept: "application/json" } })
+				.then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+				.then((data: { remaining?: number }) => {
+					const remaining = Number(data?.remaining);
+					return Number.isFinite(remaining) && remaining >= 0 ? remaining : null;
+				})
+				.catch(() => null);
+
+		let timer = 0;
+
+		const poll = () => {
+			ask().then((remaining) => {
+				// A later request landing after an even later one has already
+				// shown its answer would overwrite it with a stale number. The
+				// tab being backgrounded, or the page having unloaded, is also
+				// reason enough to drop a result rather than apply it.
+				if (remaining !== null && !document.hidden) animateTo(remaining);
+			});
+		};
+
+		const schedule = () => {
+			window.clearInterval(timer);
+			timer = window.setInterval(poll, POLL_MS);
+		};
+
+		// Coming back to the tab asks right away rather than waiting out
+		// whatever was left of the interval — the number may be well out of
+		// date by the time someone returns to it.
+		document.addEventListener("visibilitychange", () => {
+			if (document.hidden) {
+				window.clearInterval(timer);
+			} else {
+				poll();
+				schedule();
+			}
+		});
+
+		ask().then((remaining) => {
 			const elapsed = performance.now() - startedAt;
 			const wait = Math.max(0, MIN_LOADER_MS - elapsed);
-			window.setTimeout(() => reveal(target), wait);
-		};
-
-		fetch("/api/seats", { headers: { accept: "application/json" } })
-			.then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-			.then((data: { remaining?: number }) => {
-				const remaining = Number(data?.remaining);
-				finish(Number.isFinite(remaining) ? remaining : fallback);
-			})
-			.catch(() => finish(fallback));
+			window.setTimeout(() => {
+				revealFirst(remaining ?? fallback);
+				schedule();
+			}, wait);
+		});
 	}
 </script>
 
