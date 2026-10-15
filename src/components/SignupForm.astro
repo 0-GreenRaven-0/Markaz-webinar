@@ -221,8 +221,32 @@ for (let r = 0; r < ROWS; r++) {
 
 <script>
 	import { signupQuestions } from "../data/config";
-	import { trackCustom, once } from "../lib/pixel";
 	import { isQualifiedLead } from "../lib/qualified-lead";
+
+	/*
+		Meta Pixel calls are made directly against window.fbq here — never
+		through a shared helper module. A shared module importED BY SEVERAL
+		pages becomes its own chunk, and when that chunk is named anything
+		resembling "pixel" it is a textbook target for ad-blocker filename
+		filters. Confirmed by testing it: blocking a request matching
+		/pixel\.[a-z0-9]+\.js/ made this ENTIRE script fail to run at all —
+		not just the tracking call, the real submit handler below with it,
+		because a static import that fails to load aborts the whole module
+		before any of its own code executes. Each fbq() call below is wrapped in
+		its own try/catch so a blocked or missing pixel can never take the form
+		down with it.
+	*/
+	const fireOnce = (key: string, fire: () => void) => {
+		const slot = `markaz:pixel:${key}`;
+		try {
+			if (sessionStorage.getItem(slot)) return;
+			sessionStorage.setItem(slot, "1");
+		} catch {
+			// Private mode, or storage refused — fire anyway; a double count on
+			// a reload is the lesser problem.
+		}
+		fire();
+	};
 
 	const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -428,7 +452,17 @@ for (let r = 0; r < ROWS; r++) {
 		*/
 		form.addEventListener(
 			"input",
-			() => once("form-start", () => trackCustom("FormStart")),
+			() =>
+				fireOnce("form-start", () => {
+					try {
+						(window as unknown as { fbq?: (...args: unknown[]) => void }).fbq?.(
+							"trackCustom",
+							"FormStart",
+						);
+					} catch {
+						// An ad blocker, or no pixel on this build. Never block the form.
+					}
+				}),
 			{ once: true },
 		);
 

@@ -53,8 +53,7 @@ import { site, webinarDate } from "../data/config";
 </OutcomePage>
 
 <script>
-	import { confirmEndpoint, site } from "../data/config";
-	import { track, once } from "../lib/pixel";
+	import { confirmEndpoint } from "../data/config";
 
 	const root = document.querySelector<HTMLElement>("[data-confirm]");
 
@@ -107,10 +106,30 @@ import { site, webinarDate } from "../data/config";
 						sheet is now Confirmed. Only on the success path — a failed
 						confirmation is not a registration, and counting it would
 						teach the ad delivery the wrong thing.
+
+						Called directly on window.fbq, not through a shared helper
+						module — see the note on SignupForm.astro's script for why: a
+						helper imported from several pages becomes its own file named
+						"pixel.<hash>.js", which a generic ad-blocker filter can and
+						does match on the filename alone, and a static import that
+						fails to load takes the ENTIRE script down with it, not just
+						the tracking call. Wrapped so a blocked or missing pixel can
+						never stop a real confirmation from showing as confirmed.
 					*/
-					once("confirmed", () =>
-						track("CompleteRegistration", { content_name: "Webinar confirmed", status: true }),
-					);
+					try {
+						if (!sessionStorage.getItem("markaz:pixel:confirmed")) {
+							sessionStorage.setItem("markaz:pixel:confirmed", "1");
+							const fbq = (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq;
+							if (typeof fbq === "function") {
+								fbq("track", "CompleteRegistration", {
+									content_name: "Webinar confirmed",
+									status: true,
+								});
+							}
+						}
+					} catch {
+						// Private mode, or storage refused. The confirmation above still stands.
+					}
 				} else {
 					show("failed", "We could not confirm your email.");
 				}
