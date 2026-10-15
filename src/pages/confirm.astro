@@ -34,7 +34,6 @@ import { site, webinarDate } from "../data/config";
 			<a class="confirm__button" href="#" download="markaz-webinar.ics" data-calendar>
 				Add to calendar
 			</a>
-			<a class="confirm__back" href="/">&larr; Back to the webinar page</a>
 		</div>
 
 		<!-- Could not confirm -->
@@ -48,7 +47,6 @@ import { site, webinarDate } from "../data/config";
 			<a class="confirm__button" href={`mailto:${site.email}?subject=Confirm%20my%20webinar%20place`}>
 				Contact {site.email}
 			</a>
-			<a class="confirm__back" href="/">&larr; Back to the webinar page</a>
 		</div>
 
 		<!-- Announced to screen readers as the state changes. -->
@@ -261,9 +259,4 @@ import { site, webinarDate } from "../data/config";
 		background: var(--color-brand-hover);
 	}
 
-	.confirm__back {
-		font-size: var(--text-sm);
-		font-weight: var(--weight-semibold);
-		color: var(--color-brand-strong);
-	}
 </style>
