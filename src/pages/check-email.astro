@@ -29,6 +29,39 @@ import { site } from "../data/config";
 	<a class="outcome__back" href="/">&larr; Back to the webinar</a>
 </OutcomePage>
 
+<script>
+	import { track, trackCustom, once } from "../lib/pixel";
+
+	/*
+		Lead: somebody completed the registration form. This is the standard
+		event to optimise ad delivery against — it is the first point at which a
+		click has become a real registration on the sheet.
+
+		Reported here rather than at the moment of submit, because the redirect
+		to this page would cancel a fbq() call made a moment earlier before it
+		could send.
+	*/
+	once("lead", () => track("Lead", { content_name: "Webinar registration" }));
+
+	/*
+		Qualified_Lead: a custom event for the narrower group SignupForm.astro
+		marked as qualified from their interest/enroll answers (see
+		qualified-lead.ts). Read once from sessionStorage and removed, since it
+		was only ever meant for the one page load right after submitting.
+	*/
+	try {
+		const qualified = sessionStorage.getItem("markaz:lead-qualified") === "1";
+		sessionStorage.removeItem("markaz:lead-qualified");
+		if (qualified) {
+			once("qualified-lead", () =>
+				trackCustom("Qualified_Lead", { content_name: "Webinar registration" }),
+			);
+		}
+	} catch {
+		// Private mode, or storage refused. Lead above still fired.
+	}
+</script>
+
 <style>
 	.outcome__title {
 		font-size: var(--text-2xl);

@@ -58,6 +58,7 @@ import { site, webinarDate } from "../data/config";
 
 <script>
 	import { confirmEndpoint, webinarAt, webinarDurationMinutes, site } from "../data/config";
+	import { track, once } from "../lib/pixel";
 
 	const root = document.querySelector<HTMLElement>("[data-confirm]");
 
@@ -143,6 +144,15 @@ import { site, webinarDate } from "../data/config";
 				if (res.ok && data.ok) {
 					attachCalendar();
 					show("ok", "You are confirmed. See you at the webinar.");
+					/*
+						CompleteRegistration: the address is real and the row on the
+						sheet is now Confirmed. Only on the success path — a failed
+						confirmation is not a registration, and counting it would
+						teach the ad delivery the wrong thing.
+					*/
+					once("confirmed", () =>
+						track("CompleteRegistration", { content_name: "Webinar confirmed", status: true }),
+					);
 				} else {
 					show("failed", "We could not confirm your email.");
 				}

@@ -221,6 +221,8 @@ for (let r = 0; r < ROWS; r++) {
 
 <script>
 	import { signupQuestions } from "../data/config";
+	import { trackCustom, once } from "../lib/pixel";
+	import { isQualifiedLead } from "../lib/qualified-lead";
 
 	const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -415,6 +417,21 @@ for (let r = 0; r < ROWS; r++) {
 			}
 		});
 
+		/*
+			FormStart: the first time anyone types in or opens anything on the
+			form. Custom rather than standard, because Meta has no standard event
+			for it — its value is the gap between this and Lead, which tells you
+			how many people start registering and give up.
+
+			The dropdowns write to a hidden field and dispatch the same "input"
+			event, so choosing an answer counts as starting too.
+		*/
+		form.addEventListener(
+			"input",
+			() => once("form-start", () => trackCustom("FormStart")),
+			{ once: true },
+		);
+
 		form.addEventListener("submit", async (e) => {
 			e.preventDefault();
 			const { errors, data } = validate();
@@ -480,6 +497,24 @@ for (let r = 0; r < ROWS; r++) {
 					}
 					done("error", message);
 					return;
+				}
+
+				/*
+					Whether this signup is a Qualified_Lead, decided from the
+					interest/enroll answers (see qualified-lead.ts). Handed to
+					/check-email through sessionStorage rather than the URL, since a
+					fbq("track", ...) call made right before navigation is often
+					cancelled by the navigation itself before it can send — so the
+					event is fired from the NEXT page instead, once it has loaded.
+				*/
+				try {
+					sessionStorage.setItem(
+						"markaz:lead-qualified",
+						isQualifiedLead(payload.interest ?? "", payload.enroll ?? "") ? "1" : "0",
+					);
+				} catch {
+					// Private mode, or storage refused. Lead still fires on the next
+					// page; only the qualified split is lost.
 				}
 
 				/*
