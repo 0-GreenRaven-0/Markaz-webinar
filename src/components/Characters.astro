@@ -13,13 +13,15 @@ import { characters } from "../data/characters";
  */
 
 /*
-	The hole in the frame measures 688 x 1185 in the frame file's own pixels.
+	The hole in the frame measures 663 x 1143 in the frame file's own pixels —
+	re-measured for the current green frame; it was 688 x 1185 when the frame
+	was gold, and whichever frame.webp ships next needs this re-measured again.
 	A character drawn wider than that shape sits inside it with space to spare
 	above the head, and can be pushed up to close the gap; one drawn narrower
 	already reaches both top and bottom, and must not be pushed at all or the
 	top of the head is clipped away. `room` is how far each one can go.
 */
-const openingAspect = 688 / 1185;
+const openingAspect = 663 / 1143;
 
 /* Sides alternate strictly: image left, image right, and so on down the page. */
 const placed = characters.map((character, i) => ({
@@ -50,12 +52,14 @@ const placed = characters.map((character, i) => ({
 				<p>
 					This program was put together by experienced &amp; talented developers who worked
 					on more than 10 projects that generated over{" "}
-					<b class="pop">$550,000 in Revenue</b>.
+					<b class="pop">$550,000 in Revenue</b>, and{" "}
+					<b class="pop">only 20 serious and committed individuals are accepted into each cohort</b>,
+					which runs for 6 months.
 				</p>
 				<p>
-					It was designed to kickstart your game development career from ABSOLUTE ZERO to
-					building your very own 1st complete video game and{" "}
-					<b class="pop">selling it on Steam in just 6 months!</b>
+					It was designed to teach you how to work and collaborate with a team to build
+					your very 1st complete video game,{" "}
+					<b class="pop">launch it on Steam and make real revenue from it</b>
 				</p>
 			</div>
 
@@ -85,7 +89,7 @@ const placed = characters.map((character, i) => ({
 								src="/characters/frame.webp"
 								alt=""
 								width="940"
-								height="1523"
+								height="1486"
 								loading="lazy"
 								decoding="async"
 							/>
@@ -194,7 +198,7 @@ const placed = characters.map((character, i) => ({
 
 		.characters__lead-in {
 			margin-block-start: var(--space-lg);
-			font-size: var(--text-xl);
+			font-size: var(--text-2xl);
 		}
 
 		.characters__intro {
@@ -284,10 +288,13 @@ const placed = characters.map((character, i) => ({
 	}
 
 	/* The hole in the frame artwork, measured from the file itself: it starts
-	   13.5% in from the left, 13.3% from the right, and 11.1% in from the top
-	   and the bottom. Its proportions were chosen to match the artwork, so a
-	   character very nearly fills it, and overflow clips whatever is pushed
-	   past the edge by --character-fill.
+	   14.7% in from the left, 14.8% from the right, 11.3% down from the top and
+	   11.8% up from the bottom. The frame file is re-measured every time the
+	   artwork changes — these numbers are specific to the current green frame
+	   and were wrong by a few percent when the frame was gold, before it. Its
+	   proportions were chosen to match the character art, so a character very
+	   nearly fills it, and overflow clips whatever is pushed past the edge by
+	   --character-fill.
 
 	   This is a div, and the image inside is sized against it, because the
 	   insets cannot be put on the <img> directly: on an absolutely positioned
@@ -296,7 +303,7 @@ const placed = characters.map((character, i) => ({
 	   and hung out past its right-hand edge. */
 	.character__window {
 		position: absolute;
-		inset: 11.1% 13.3% 11.1% 13.5%;
+		inset: 11.3% 14.8% 11.8% 14.7%;
 		overflow: hidden;
 	}
 

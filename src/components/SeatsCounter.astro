@@ -1,16 +1,20 @@
 ---
-import { seatsRemaining } from "../data/config";
+import { seatsTotal, seatsRemainingFallback } from "../data/config";
 
 /**
- * The seat counter.
+ * The seat counter: "418/450", both numbers the same size.
  *
  * It deliberately shows nothing but a loading animation at first. The real
- * figure is the number in config.ts minus everyone already on the signup
- * sheet, which only /api/seats can work out — this page is static, so the
- * number cannot be in the HTML.
+ * left-hand figure is seatsTotal from config.ts minus everyone already on the
+ * signup sheet, which only /api/seats can work out — this page is static, so
+ * the number cannot be in the HTML. The total on the right of the "/" is the
+ * one piece that never changes at runtime, so it is written straight into the
+ * markup rather than waited on; /api/seats also returns its own copy of it,
+ * used if it ever disagrees with the one baked in here.
  *
- * `data-seats-fallback` is the configured number, used only if that request
- * fails. A slightly stale count is harmless; an empty hero is not.
+ * `data-seats-fallback` is seatsRemainingFallback — NOT seatsTotal — so a
+ * visitor who happens to load the page the one time /api/seats fails sees a
+ * believable in-progress count rather than the full, untouched capacity.
  *
  * After the first load it keeps asking, every POLL_MS, for as long as the
  * page is open and the tab is in front — so a row deleted from the sheet
@@ -20,7 +24,13 @@ import { seatsRemaining } from "../data/config";
  */
 ---
 
-<p class="seats" data-seats-fallback={seatsRemaining} data-state="loading" aria-busy="true">
+<p
+	class="seats"
+	data-seats-fallback={seatsRemainingFallback}
+	data-seats-total={seatsTotal}
+	data-state="loading"
+	aria-busy="true"
+>
 	<span class="seats__slot">
 		<span class="seats__number" data-seats-number></span>
 		<span class="seats__loader" aria-hidden="true">
@@ -30,7 +40,9 @@ import { seatsRemaining } from "../data/config";
 		</span>
 		<span class="visually-hidden" data-seats-status>Checking how many seats are left</span>
 	</span>
-	<span class="seats__label">seats remaining</span>
+	<span class="seats__slash" aria-hidden="true">/</span>
+	<span class="seats__total" data-seats-total-label>{seatsTotal}</span>
+	<span class="seats__caption">Seats Remaining</span>
 </p>
 
 <script>
@@ -46,8 +58,20 @@ import { seatsRemaining } from "../data/config";
 	for (const el of document.querySelectorAll<HTMLElement>(".seats")) {
 		const numberEl = el.querySelector<HTMLElement>("[data-seats-number]");
 		const statusEl = el.querySelector<HTMLElement>("[data-seats-status]");
+		const totalEl = el.querySelector<HTMLElement>("[data-seats-total-label]");
 		const fallback = Number(el.dataset.seatsFallback ?? "0");
+		/* The number after "out of". Written into the page already from
+		   seatsTotal, so this just mirrors it — unless /api/seats answers with a
+		   different one, in which case that live figure wins and the label
+		   updates to match. */
+		let total = Number(el.dataset.seatsTotal ?? "0");
 		if (!numberEl) continue;
+
+		const setTotal = (value: number) => {
+			if (!Number.isFinite(value) || value === total) return;
+			total = value;
+			if (totalEl) totalEl.textContent = String(total);
+		};
 
 		const startedAt = performance.now();
 		const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -62,7 +86,7 @@ import { seatsRemaining } from "../data/config";
 			// Pin the box to the width of the new number so it cannot shove the
 			// label sideways as the digit count changes.
 			el.style.setProperty("--seats-digits", String(String(target).length));
-			if (statusEl) statusEl.textContent = `${target} seats remaining`;
+			if (statusEl) statusEl.textContent = `${target} out of ${total} seats remaining`;
 
 			if (reduceMotion) {
 				numberEl.textContent = String(target);
@@ -102,7 +126,8 @@ import { seatsRemaining } from "../data/config";
 		const ask = (): Promise<number | null> =>
 			fetch("/api/seats", { headers: { accept: "application/json" } })
 				.then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-				.then((data: { remaining?: number }) => {
+				.then((data: { remaining?: number; total?: number }) => {
+					if (typeof data?.total === "number") setTotal(data.total);
 					const remaining = Number(data?.remaining);
 					return Number.isFinite(remaining) && remaining >= 0 ? remaining : null;
 				})
@@ -154,6 +179,16 @@ import { seatsRemaining } from "../data/config";
 		align-items: baseline;
 		gap: var(--space-2xs);
 		margin: 0;
+	}
+
+	/* Bold, sitting on the baseline beside the numbers rather than captioning
+	   them from above. */
+	.seats__caption {
+		font-size: var(--text-sm);
+		font-weight: var(--weight-bold);
+		text-transform: uppercase;
+		letter-spacing: 0.02em;
+		color: var(--color-text-muted);
 	}
 
 	/* Holds the number and the loader in the same place, so the row does not
@@ -240,12 +275,33 @@ import { seatsRemaining } from "../data/config";
 		}
 	}
 
-	.seats__label {
-		font-size: var(--text-base);
-		font-weight: var(--weight-semibold);
+	/* Same type as the live figure — asked for directly, so "418/450" reads as
+	   one unit rather than a big number with a small caption next to it. */
+	.seats__total {
+		font-family: var(--font-display);
+		font-weight: var(--weight-display);
+		font-size: var(--text-3xl);
+		line-height: var(--leading-tight);
+		font-variant-numeric: tabular-nums;
 		/* The brightest green in the palette, as asked. Worth knowing: it sits at
 		   2.6:1 on white, well under the 4.5:1 readability threshold.
 		   --color-brand-strong is the same hue and passes, if you want to swap. */
 		color: var(--color-brand);
+	}
+
+	.seats__slash {
+		font-family: var(--font-display);
+		font-weight: var(--weight-display);
+		font-size: var(--text-3xl);
+		line-height: var(--leading-tight);
+		color: var(--color-text-muted);
+	}
+
+	/* The slash and the total sit with the loading dots while the live figure
+	   is still arriving, which otherwise reads as "/450" floating on its own
+	   with nothing on the left of it. */
+	.seats[data-state="loading"] .seats__slash,
+	.seats[data-state="loading"] .seats__total {
+		opacity: 0;
 	}
 </style>

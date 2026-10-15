@@ -15,7 +15,7 @@
  * the private key into the published files.
  */
 import { signupQuestions } from "../../src/data/config";
-import { getGoogleAccessToken, appendToSheet } from "../../src/lib/google-auth";
+import { getGoogleAccessToken, appendToSheet, fetchWithTimeout } from "../../src/lib/google-auth";
 import {
 	checkEmail,
 	honeypotTripped,
@@ -143,7 +143,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 		if (sms) attributes.SMS = sms;
 
 		const postContact = (attrs: Record<string, string>) =>
-			fetch("https://api.brevo.com/v3/contacts", {
+			fetchWithTimeout("https://api.brevo.com/v3/contacts", {
 				method: "POST",
 				headers: {
 					"api-key": brevoKey,

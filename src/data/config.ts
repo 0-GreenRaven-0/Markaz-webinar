@@ -13,8 +13,21 @@ export const webinarDate = "FRIDAY 30 OCTOBER — 7PM";
  */
 export const webinarAt = "2026-10-30T19:00:00+02:00";
 
-/** The number shown in the hero seats counter. */
-export const seatsRemaining = 418;
+/**
+ * Total seats on offer — the fixed number on the right of the counter's "/".
+ * How many are left is worked out live from the signup sheet (see
+ * functions/api/seats.ts), never edited here.
+ */
+export const seatsTotal = 450;
+
+/**
+ * What the left side of the counter shows before the live figure has loaded,
+ * or if /api/seats cannot be reached at all. Set this to whatever the real
+ * remaining count is at the time, the same as you would seatsTotal — it does
+ * not update itself, and a stale fallback becomes visible the moment the sheet
+ * is briefly unreachable.
+ */
+export const seatsRemainingFallback = 418;
 
 /**
  * How long the webinar runs, in minutes. Only used to work out the end time on

@@ -10,6 +10,28 @@
  * ever exists inside a server function.
  */
 
+/**
+ * Every network call in this file used to have no timeout at all. If Google's
+ * token endpoint or the Sheets API ever stalled — a slow edge, a dropped
+ * connection that never resets — the fetch would hang forever with it, and so
+ * would the whole /api/subscribe request behind it: the signup button on the
+ * page would sit on "Sending…" indefinitely, with nothing to time out and no
+ * error to show. This wraps every call here in a bound, so the worst case is
+ * a clear failure in a few seconds, never a silent hang.
+ */
+const FETCH_TIMEOUT_MS = 8000;
+
+/** Exported so subscribe.ts can put the same bound on its own Brevo call. */
+export async function fetchWithTimeout(input: string, init: RequestInit = {}): Promise<Response> {
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+	try {
+		return await fetch(input, { ...init, signal: controller.signal });
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
 function base64url(data: string | ArrayBuffer): string {
 	const bytes =
 		typeof data === "string" ? new TextEncoder().encode(data) : new Uint8Array(data);
@@ -60,7 +82,7 @@ export async function getGoogleAccessToken(credsJson: string): Promise<string> {
 		new TextEncoder().encode(signingInput),
 	);
 
-	const res = await fetch("https://oauth2.googleapis.com/token", {
+	const res = await fetchWithTimeout("https://oauth2.googleapis.com/token", {
 		method: "POST",
 		headers: { "Content-Type": "application/x-www-form-urlencoded" },
 		body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${signingInput}.${base64url(signature)}`,
@@ -83,7 +105,7 @@ export async function getGoogleAccessToken(credsJson: string): Promise<string> {
  * the row should not put a seat back.
  */
 export async function countSheetRows(sheetId: string, token: string): Promise<number> {
-	const res = await fetch(
+	const res = await fetchWithTimeout(
 		`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A:A?majorDimension=COLUMNS`,
 		{ headers: { Authorization: `Bearer ${token}` } },
 	);
@@ -119,19 +141,19 @@ export async function appendToSheet(
 	const auth = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 	const lastCol = String.fromCharCode(64 + Math.min(headers.length, 26));
 
-	const check = await fetch(`${base}/A1:${lastCol}1`, { headers: auth });
+	const check = await fetchWithTimeout(`${base}/A1:${lastCol}1`, { headers: auth });
 	const checkData = (await check.json()) as { values?: string[][] };
 	const existing = checkData.values?.[0] ?? [];
 
 	if (existing[0] !== headers[0] || existing.length < headers.length) {
-		await fetch(`${base}/A1:${lastCol}1?valueInputOption=RAW`, {
+		await fetchWithTimeout(`${base}/A1:${lastCol}1?valueInputOption=RAW`, {
 			method: "PUT",
 			headers: auth,
 			body: JSON.stringify({ values: [headers] }),
 		});
 	}
 
-	const res = await fetch(
+	const res = await fetchWithTimeout(
 		`${base}/A:${lastCol}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
 		{
 			method: "POST",

@@ -1,5 +1,5 @@
 /**
- * How many seats are left: the number set in config.ts, minus everyone already
+ * How many seats are left: seatsTotal from config.ts, minus everyone already
  * on the signup sheet. Served at /api/seats.
  *
  * A Cloudflare Pages Function — the page itself is static, built once and
@@ -8,10 +8,11 @@
  * state first.
  *
  * It NEVER fails in a way the visitor can see. If the sheet cannot be read, the
- * configured number is returned and the counter shows that: a seat count that
- * is slightly stale is harmless, a broken counter in the hero is not.
+ * configured total is returned as both figures and the counter shows that: a
+ * seat count that is slightly stale is harmless, a broken counter in the hero
+ * is not.
  */
-import { seatsRemaining as configuredSeats } from "../../src/data/config";
+import { seatsTotal } from "../../src/data/config";
 import { getGoogleAccessToken, countSheetRows } from "../../src/lib/google-auth";
 
 interface Env {
@@ -42,17 +43,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 	if (!credsJson || !sheetId) {
 		console.error("[seats] sheet is not configured; falling back to the number in config.ts");
-		return json({ remaining: configuredSeats, exact: false });
+		return json({ remaining: seatsTotal, total: seatsTotal, exact: false });
 	}
 
 	try {
 		const token = await getGoogleAccessToken(credsJson);
 		const taken = await countSheetRows(sheetId, token);
 		// Never below zero, and never above the number that was offered.
-		const remaining = Math.min(configuredSeats, Math.max(0, configuredSeats - taken));
-		return json({ remaining, exact: true });
+		const remaining = Math.min(seatsTotal, Math.max(0, seatsTotal - taken));
+		return json({ remaining, total: seatsTotal, exact: true });
 	} catch (err) {
 		console.error("[seats] could not read the sheet:", err);
-		return json({ remaining: configuredSeats, exact: false });
+		return json({ remaining: seatsTotal, total: seatsTotal, exact: false });
 	}
 };

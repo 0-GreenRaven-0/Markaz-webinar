@@ -23,9 +23,16 @@ const BTN_W = 320;
 const BTN_H = 64;
 const COLS = 11;
 const ROWS = 3;
-/** How far boundary points may bite into the rectangle. */
+/**
+ * How far boundary points may bite into the rectangle. RAG_Y used to be 7 —
+ * on a button only 64px tall, that let two neighbouring points on the top or
+ * bottom edge swing independently by up to 7px each, with no relation to one
+ * another, which is what drew the sharp zigzag rather than a soft wave.
+ * Keeping it below a third of that still leaves the top and bottom
+ * noticeably uneven, just without the spikes.
+ */
 const RAG_X = 9;
-const RAG_Y = 7;
+const RAG_Y = 2;
 
 /** Lighter flag tones — used in the top and bottom bands. */
 const LIGHT_FACETS = ["g1", "g2", "g2", "g3", "g3", "g4"] as const;
@@ -513,12 +520,26 @@ for (let r = 0; r < ROWS; r++) {
 				if (labelEl) labelEl.textContent = "Claim my seat";
 			};
 
+			/*
+				A bound on how long the button is allowed to sit on "Sending…". The
+				server itself now times out every external call it makes (Google,
+				Brevo), but this is the backstop on THIS side of the connection: if
+				the request is ever dropped somewhere between here and there with no
+				response coming back at all, fetch() has no timeout of its own and
+				would otherwise wait forever, leaving the button stuck with no
+				error, no way out, and no way for the visitor to tell if it worked.
+			*/
+			const requestTimeout = new AbortController();
+			const timeoutTimer = setTimeout(() => requestTimeout.abort(), 15_000);
+
 			try {
 				const res = await fetch("/api/subscribe", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(payload),
+					signal: requestTimeout.signal,
 				});
+				clearTimeout(timeoutTimer);
 				const result = (await res.json().catch(() => ({}))) as { error?: string };
 
 				if (!res.ok) {
@@ -564,8 +585,15 @@ for (let r = 0; r < ROWS; r++) {
 				form.reset();
 				window.location.assign("/check-email");
 				return;
-			} catch {
-				done("error", "Could not reach the server. Please check your connection and try again.");
+			} catch (err) {
+				clearTimeout(timeoutTimer);
+				const timedOut = err instanceof DOMException && err.name === "AbortError";
+				done(
+					"error",
+					timedOut
+						? "That's taking too long. Please check your connection and try again."
+						: "Could not reach the server. Please check your connection and try again.",
+				);
 			}
 		});
 	}
