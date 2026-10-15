@@ -1,5 +1,7 @@
 ---
 import CountrySelect from "./CountrySelect.astro";
+import SelectField from "./SelectField.astro";
+import { signupQuestions } from "../data/config";
 
 /**
  * The submit button is filled with a low-poly facet pattern, built from a
@@ -168,6 +170,29 @@ for (let r = 0; r < ROWS; r++) {
 		<p class="field__error" id="phone-error" data-error-for="phone"></p>
 	</div>
 
+	{/*
+		The qualifying questions, built from signupQuestions in config.ts.
+		They use SelectField rather than a native <select>, because the open list
+		of a native one is drawn by the operating system and ignores the site's
+		fonts, colours and angled edges completely.
+	*/}
+	{
+		signupQuestions.map((question) => (
+			<div
+				class="field"
+				data-question={question.id}
+				hidden={Boolean(question.revealedBy)}
+				data-reveal-when={question.revealedBy ? JSON.stringify(question.revealedBy) : undefined}
+			>
+				<label class="field__label" for={question.id}>
+					{question.label}
+				</label>
+				<SelectField id={question.id} options={question.options} />
+				<p class="field__error" id={`${question.id}-error`} data-error-for={question.id} />
+			</div>
+		))
+	}
+
 	{/* Hidden from people, visible to bots. The server drops anything that fills it. */}
 	<div class="form__trap" aria-hidden="true">
 		<label for="company">Company</label>
@@ -195,7 +220,14 @@ for (let r = 0; r < ROWS; r++) {
 
 
 <script>
+	import { signupQuestions } from "../data/config";
+
 	const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+	/* The dropdowns are built from the same list as the markup, so adding a
+	   question in config.ts makes it required and submitted without touching
+	   anything here. */
+	const QUESTION_IDS = signupQuestions.map((question) => question.id);
 
 	/* The providers our visitors actually use. */
 	const KNOWN_DOMAINS = [
@@ -259,8 +291,12 @@ for (let r = 0; r < ROWS; r++) {
 			const field = form.querySelector<HTMLElement>(`[name="${name}"]`);
 			const errorEl = form.querySelector<HTMLElement>(`[data-error-for="${name}"]`);
 			if (errorEl) errorEl.textContent = message;
-			field?.setAttribute("aria-invalid", message ? "true" : "false");
-			field?.closest(".field")?.toggleAttribute("data-invalid", Boolean(message));
+			const wrapper = field?.closest(".field");
+			// A custom dropdown's value lives in a hidden input, which announces
+			// nothing — mark the button the visitor actually focuses instead.
+			const target = wrapper?.querySelector<HTMLElement>("[data-select-trigger]") ?? field;
+			target?.setAttribute("aria-invalid", message ? "true" : "false");
+			wrapper?.toggleAttribute("data-invalid", Boolean(message));
 		};
 
 		/** "Ada  Lovelace King" -> first "Ada", last "Lovelace King". */
@@ -287,11 +323,61 @@ for (let r = 0; r < ROWS; r++) {
 				errors.phone = "Please enter a valid phone number.";
 			}
 
-			for (const name of ["full_name", "email", "phone"]) {
+			for (const id of QUESTION_IDS) {
+				// A question nobody has been shown cannot be required.
+				if (form.querySelector<HTMLElement>(`[data-question="${id}"]`)?.hidden) continue;
+				if (!String(data.get(id) ?? "").trim()) {
+					errors[id] = "Please choose the one that fits you.";
+				}
+			}
+
+			for (const name of ["full_name", "email", "phone", ...QUESTION_IDS]) {
 				setError(name, errors[name] ?? "");
 			}
 			return { errors, data };
 		};
+
+		/*
+			Questions that only appear once an earlier one is answered a certain
+			way. Which question and which answers come from config.ts, so the rule
+			is editable without touching this code.
+
+			A question that is hidden again has its answer cleared, so an answer
+			nobody can see is never submitted.
+		*/
+		const conditionals = [...form.querySelectorAll<HTMLElement>("[data-reveal-when]")].map(
+			(field) => ({
+				field,
+				rule: JSON.parse(field.dataset.revealWhen ?? "{}") as {
+					question: string;
+					answers: string[];
+				},
+			}),
+		);
+
+		const syncConditionals = () => {
+			for (const { field, rule } of conditionals) {
+				const answer = String(
+					form.querySelector<HTMLInputElement>(`[name="${rule.question}"]`)?.value ?? "",
+				);
+				const show = rule.answers.includes(answer);
+				if (show === !field.hidden) continue;
+
+				field.hidden = !show;
+				if (show) {
+					field.setAttribute("data-revealed", "");
+				} else {
+					field.removeAttribute("data-revealed");
+					field.removeAttribute("data-invalid");
+					const errorEl = field.querySelector<HTMLElement>("[data-error-for]");
+					if (errorEl) errorEl.textContent = "";
+					field.querySelector("[data-select]")?.dispatchEvent(new CustomEvent("select:reset"));
+				}
+			}
+		};
+
+		form.addEventListener("input", syncConditionals);
+		syncConditionals();
 
 		// The "did you mean" line under the email field.
 		const emailEl = form.querySelector<HTMLInputElement>('[name="email"]');
@@ -357,6 +443,8 @@ for (let r = 0; r < ROWS; r++) {
 				dial_code: dial,
 				phone,
 				phone_full: `${dial} ${phone}`.trim(),
+				// One entry per qualifying dropdown, keyed by its id in config.ts.
+				...Object.fromEntries(QUESTION_IDS.map((id) => [id, String(data.get(id) ?? "")])),
 				// Which headline this visitor saw, so you can tell which one converts.
 				hook_variant: document.documentElement.dataset.hook ?? "",
 				submitted_at: new Date().toISOString(),
@@ -394,8 +482,19 @@ for (let r = 0; r < ROWS; r++) {
 					return;
 				}
 
-				done("success", "Thank you — your seat request is in. We will be in touch shortly.");
+				/*
+					Straight to /check-email, which is the only place that tells them
+					the registration is not finished until they click the link in
+					their inbox. The button is left disabled and still reading
+					"Sending..." on purpose: re-enabling it invites a second
+					submission during the moment before the new page paints.
+
+					Only on success. Every failure above returns before this point
+					and leaves the visitor on the form with the reason.
+				*/
 				form.reset();
+				window.location.assign("/check-email");
+				return;
 			} catch {
 				done("error", "Could not reach the server. Please check your connection and try again.");
 			}
@@ -416,6 +515,28 @@ for (let r = 0; r < ROWS; r++) {
 		gap: var(--space-3xs);
 	}
 
+	/* display:grid above would otherwise beat the hidden attribute. */
+	.field[hidden] {
+		display: none;
+	}
+
+	/* A question that appears mid-form eases in, so it reads as having been
+	   revealed rather than as the page having jumped. */
+	.field[data-revealed] {
+		animation: field-reveal 260ms ease-out;
+	}
+
+	@keyframes field-reveal {
+		from {
+			opacity: 0;
+			transform: translateY(-0.35rem);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
 	.field__label {
 		/* Francker, matching the headlines. */
 		font-family: var(--font-heading);
@@ -424,13 +545,30 @@ for (let r = 0; r < ROWS; r++) {
 		color: var(--color-text);
 	}
 
+	/* The qualifying questions, set in Marzano to mark them off from the three
+	   plain fields above. --font-display rather than "Marzano" directly: that
+	   token puts MarzanoDigitFix in front, which is what keeps $ and + from
+	   rendering as the demo build's hidden DEMO wordmarks. See fonts.css.
+	   Smaller than the field labels on a phone, where they run to four lines. */
+	[data-question] .field__label {
+		font-family: var(--font-display);
+		font-weight: var(--weight-display);
+		font-size: var(--text-xs);
+	}
+
+	@media (min-width: 48rem) {
+		[data-question] .field__label {
+			font-size: var(--text-sm);
+		}
+	}
+
 	/* The box carries the border and the lean; the input inside stays upright. */
 	.field__box {
 		display: flex;
 		/* Sharp corners and a heavy edge, matching the brand parallelogram. */
 		border: 2px solid var(--color-text);
 		border-radius: 0;
-		background: var(--color-bg);
+		background: var(--color-surface-raised);
 		transform: skewX(var(--field-skew));
 	}
 
@@ -596,6 +734,15 @@ for (let r = 0; r < ROWS; r++) {
 			max-width: 28ch;
 			margin-inline: auto;
 		}
+	}
+
+	/* The status line is empty until there is something to say. Collapsed
+	   rather than removed: a live region that is display:none when the message
+	   arrives is not reliably announced. */
+	.form__status:empty {
+		height: 0;
+		margin: 0;
+		overflow: hidden;
 	}
 
 	.form__trap {

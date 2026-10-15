@@ -90,7 +90,7 @@ const hookCss = [
 		position: relative;
 		overflow: hidden;
 		color: var(--color-text);
-		padding-block: var(--space-lg) var(--space-3xl);
+		padding-block: var(--space-lg) var(--section-pad);
 	}
 
 	/* One vertical column, centred, in the order: headline, sub, counter, form. */
@@ -114,6 +114,9 @@ const hookCss = [
 		/* Caps need a touch more room than the tighter setting lower case took. */
 		letter-spacing: -0.005em;
 		max-width: 20ch;
+		/* Allowed out past the gutter: it is set large enough to carry over the
+		   facets, and holding it inside cost it two more lines. */
+		margin-inline: var(--bleed-wide);
 	}
 
 	/* Desktop has the room for longer lines, so the headline is allowed to run

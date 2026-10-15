@@ -1,0 +1,233 @@
+---
+/**
+ * The animation on /check-email: a low-poly envelope turning slowly in space,
+ * with a few faceted shards drifting around it.
+ *
+ * Built with three.js on a transparent canvas, so the page's grey shows through
+ * and the shape sits on the page rather than in a box. Flat shading throughout,
+ * which is what makes it read as the same faceted low-poly language as the
+ * edges of the landing page and the character frames.
+ *
+ * It is decoration, so it is hidden from screen readers and it never blocks the
+ * message underneath:
+ *   - WebGL missing or refused  -> the canvas is removed and nothing is shown
+ *   - prefers-reduced-motion    -> one still frame, no loop
+ *   - tab in the background     -> the loop stops until it comes back
+ */
+---
+
+<div class="scene" aria-hidden="true">
+	<canvas class="scene__canvas" data-envelope-scene></canvas>
+</div>
+
+<script>
+	import * as THREE from "three";
+
+	const host = document.querySelector<HTMLElement>(".scene");
+	const canvas = document.querySelector<HTMLCanvasElement>("[data-envelope-scene]");
+
+	if (host && canvas) {
+		/* Brand values are read off the page rather than written here, so the
+		   scene follows tokens.css like every other colour on the site. */
+		const token = (name: string, fallback: string) =>
+			getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+
+		const BRAND = new THREE.Color(token("--color-brand", "#13ba2e"));
+		const BRAND_DEEP = new THREE.Color(token("--color-brand-strong", "#0c701a"));
+		const PAPER = new THREE.Color(token("--color-surface-raised", "#ffffff"));
+		const FACET = new THREE.Color(token("--color-facet-mid", "#cfcfcf"));
+		const INK = new THREE.Color(token("--color-text", "#13192a"));
+
+		const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+		let renderer: THREE.WebGLRenderer;
+		try {
+			renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+		} catch {
+			// No WebGL. The message below is the page; this was only ever decoration.
+			host.remove();
+			throw new Error("skip");
+		}
+
+		renderer.setClearAlpha(0);
+		// Capped at 2: beyond that it costs fill rate for no visible gain.
+		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+		const scene = new THREE.Scene();
+		const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+		camera.position.set(0, 0, 6.4);
+
+		/* ---- the envelope ------------------------------------------------- */
+
+		const envelope = new THREE.Group();
+
+		const paper = new THREE.MeshStandardMaterial({
+			color: PAPER,
+			flatShading: true,
+			roughness: 0.85,
+			metalness: 0,
+		});
+
+		const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.6, 0.12), paper);
+		envelope.add(body);
+
+		/* The flap is a real triangular prism rather than a flat triangle, so it
+		   still has an edge to catch the light when the envelope turns side on. */
+		const flapShape = new THREE.Shape();
+		flapShape.moveTo(-1.2, 0);
+		flapShape.lineTo(1.2, 0);
+		flapShape.lineTo(0, -0.95);
+		flapShape.closePath();
+
+		const flap = new THREE.Mesh(
+			new THREE.ExtrudeGeometry(flapShape, { depth: 0.1, bevelEnabled: false }),
+			new THREE.MeshStandardMaterial({
+				color: BRAND,
+				flatShading: true,
+				roughness: 0.6,
+				metalness: 0,
+				side: THREE.DoubleSide,
+			}),
+		);
+		// Hinged along the top edge and tipped open, as if it has just been read.
+		flap.position.set(0, 0.8, -0.06);
+		flap.rotation.x = -0.72;
+		envelope.add(flap);
+
+		/* The two folds on the front, in the darker green so they stay visible
+		   against the white without putting a line of pure black on the page. */
+		const fold = new THREE.MeshStandardMaterial({
+			color: BRAND_DEEP,
+			flatShading: true,
+			roughness: 0.7,
+		});
+		for (const sign of [-1, 1]) {
+			const edge = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.05, 0.02), fold);
+			edge.position.set(sign * 0.62, 0.02, 0.07);
+			edge.rotation.z = sign * 0.63;
+			envelope.add(edge);
+		}
+
+		const seal = new THREE.Mesh(
+			new THREE.IcosahedronGeometry(0.2, 0),
+			new THREE.MeshStandardMaterial({ color: INK, flatShading: true, roughness: 0.5 }),
+		);
+		seal.position.set(0, -0.05, 0.1);
+		envelope.add(seal);
+
+		scene.add(envelope);
+
+		/* ---- shards -------------------------------------------------------- */
+
+		const shardMaterial = new THREE.MeshStandardMaterial({
+			color: FACET,
+			flatShading: true,
+			roughness: 0.9,
+		});
+
+		/* Fixed positions rather than random ones, so the composition is the same
+		   every time instead of occasionally bunching into a corner. */
+		const shardSpots: [number, number, number, number][] = [
+			[-2.5, 1.2, -1.4, 0.26],
+			[2.6, 0.9, -1.1, 0.2],
+			[-2.1, -1.4, -0.8, 0.17],
+			[2.2, -1.3, -1.6, 0.23],
+			[-3.0, -0.2, -2.2, 0.15],
+			[3.0, 0.1, -2.0, 0.18],
+		];
+
+		const shards = shardSpots.map(([x, y, z, size]) => {
+			const shard = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 0), shardMaterial);
+			shard.position.set(x, y, z);
+			shard.rotation.set(x, y, z);
+			scene.add(shard);
+			return shard;
+		});
+
+		/* ---- light ---------------------------------------------------------- */
+
+		scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+
+		const key = new THREE.DirectionalLight(0xffffff, 2.4);
+		key.position.set(2.5, 3, 4);
+		scene.add(key);
+
+		// A green bounce from below, which is what ties the white paper to the brand.
+		const bounce = new THREE.DirectionalLight(BRAND.getHex(), 1.1);
+		bounce.position.set(-3, -2, 1.5);
+		scene.add(bounce);
+
+		/* ---- size ------------------------------------------------------------ */
+
+		const resize = () => {
+			const { width, height } = host.getBoundingClientRect();
+			if (!width || !height) return;
+			renderer.setSize(width, height, false);
+			camera.aspect = width / height;
+			// Pulls the envelope back on a narrow screen so it never crops.
+			camera.position.z = width < 420 ? 7.6 : 6.4;
+			camera.updateProjectionMatrix();
+		};
+
+		resize();
+		new ResizeObserver(resize).observe(host);
+
+		/* ---- loop -------------------------------------------------------------- */
+
+		const draw = (t: number) => {
+			const s = t / 1000;
+			envelope.rotation.y = Math.sin(s * 0.45) * 0.6;
+			envelope.rotation.x = Math.sin(s * 0.33) * 0.16 - 0.08;
+			envelope.rotation.z = Math.sin(s * 0.27) * 0.05;
+			envelope.position.y = Math.sin(s * 0.6) * 0.12;
+
+			shards.forEach((shard, i) => {
+				shard.rotation.x += 0.0016 * (i % 3 === 0 ? -1 : 1);
+				shard.rotation.y += 0.0022;
+				shard.position.y += Math.sin(s * 0.5 + i) * 0.0012;
+			});
+
+			renderer.render(scene, camera);
+		};
+
+		if (still) {
+			draw(0);
+		} else {
+			let frame = 0;
+			const tick = (t: number) => {
+				draw(t);
+				frame = requestAnimationFrame(tick);
+			};
+			frame = requestAnimationFrame(tick);
+
+			// Nothing is worth animating behind another tab.
+			document.addEventListener("visibilitychange", () => {
+				cancelAnimationFrame(frame);
+				if (!document.hidden) frame = requestAnimationFrame(tick);
+			});
+		}
+	}
+</script>
+
+<style>
+	.scene {
+		width: 100%;
+		/* Squarish on a phone, wider on a desktop — the shards need the width or
+		   they sit on top of the envelope. */
+		aspect-ratio: 4 / 3;
+		max-width: 32rem;
+		margin-inline: auto;
+	}
+
+	@media (min-width: 48rem) {
+		.scene {
+			aspect-ratio: 16 / 9;
+		}
+	}
+
+	.scene__canvas {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+</style>

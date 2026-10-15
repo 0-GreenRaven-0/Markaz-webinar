@@ -77,7 +77,7 @@ for (let i = 0; i < SEGMENTS; i++) {
 <section class="projects" id="projects">
 	<div class="container projects__inner">
 		<header class="projects__head">
-			<h2>Check out our Student's projects</h2>
+			<h2>Here's a glimpse of what you'll build with us</h2>
 		</header>
 
 		<ul class="projects__grid" role="list">
@@ -183,7 +183,7 @@ for (let i = 0; i < SEGMENTS; i++) {
 	.projects {
 		position: relative;
 		overflow: hidden;
-		padding-block: var(--space-3xl);
+		padding-block: var(--section-pad);
 	}
 
 	.projects__inner {
@@ -199,6 +199,7 @@ for (let i = 0; i < SEGMENTS; i++) {
 
 	.projects__head h2 {
 		font-size: var(--text-3xl);
+		margin-inline: var(--bleed-wide);
 	}
 
 	.projects__grid {
@@ -211,7 +212,12 @@ for (let i = 0; i < SEGMENTS; i++) {
 		margin-inline: auto;
 	}
 
+	/* On a phone each video reaches back out past the gutter. They are
+	   pictures, not text, so nothing is being read over the facets. The pull
+	   belongs here rather than on the grid: a negative padding is not a thing,
+	   and the grid is already using its margins to centre itself. */
 	.project__frame {
+		margin-inline: var(--bleed-wide);
 		position: relative;
 		aspect-ratio: 16 / 9;
 		overflow: hidden;

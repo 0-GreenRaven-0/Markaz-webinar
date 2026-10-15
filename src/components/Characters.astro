@@ -1,0 +1,338 @@
+---
+import { characters } from "../data/characters";
+
+/**
+ * The six Divisions, as character art.
+ *
+ * One Division to a row: the character on one side, its heading and text on
+ * the other, and the sides swap each row down the page.
+ *
+ * The order is the order of the list in characters.ts — these read as a
+ * sequence of Divisions now that each has a heading, so it is deliberate
+ * rather than shuffled.
+ */
+
+/*
+	The hole in the frame measures 688 x 1185 in the frame file's own pixels.
+	A character drawn wider than that shape sits inside it with space to spare
+	above the head, and can be pushed up to close the gap; one drawn narrower
+	already reaches both top and bottom, and must not be pushed at all or the
+	top of the head is clipped away. `room` is how far each one can go.
+*/
+const openingAspect = 688 / 1185;
+
+/* Sides alternate strictly: image left, image right, and so on down the page. */
+const placed = characters.map((character, i) => ({
+	...character,
+	side: i % 2 === 0 ? "start" : "end",
+	room: Math.max(1, character.width / character.height / openingAspect).toFixed(4),
+}));
+
+---
+
+<section class="characters" id="discover">
+	<div class="container characters__inner">
+		<header class="characters__head">
+			<h2 class="characters__heading">What you're about to Discover</h2>
+			<p class="characters__sub">
+				The one of a kind cohort in all of Lebanon which you'll NEVER found in any
+				university
+			</p>
+
+			{/*
+				<b class="pop"> marks the words that carry the pitch.
+
+				The {" "} markers are load-bearing: a line break between text and a
+				tag is collapsed away entirely, which ran words together on the page
+				as "developerswho" and "onSteam".
+			*/}
+			<div class="characters__intro">
+				<p>
+					This program was put together by experienced &amp; talented developers who worked
+					on more than 10 projects that generated over{" "}
+					<b class="pop">$550,000 in Revenue</b>.
+				</p>
+				<p>
+					It was designed to kickstart your game development career from ABSOLUTE ZERO to
+					building your very own 1st complete video game and{" "}
+					<b class="pop">selling it on Steam in just 6 months!</b>
+				</p>
+			</div>
+
+			<h3 class="characters__lead-in">
+				You'll be walked through 6 essential Divisions of game development:
+			</h3>
+		</header>
+
+		<ul class="characters__grid" role="list">
+			{
+				placed.map((character, i) => (
+					<li
+						class="character"
+						data-side={character.side}
+						style={`--character-room: ${character.room}`}
+					>
+						{/*
+							The character sits BEHIND the frame, not inside a cropped box, so
+							the frame's bevel overlaps the artwork the way a real one would.
+							__window is the hole in the frame; the art is fitted to it. See
+							the note on .character__window for why that is a div and not just
+							insets on the <img>.
+						*/}
+						<div class="character__portrait">
+							<img
+								class="character__frame"
+								src="/characters/frame.webp"
+								alt=""
+								width="940"
+								height="1523"
+								loading="lazy"
+								decoding="async"
+							/>
+							<div class="character__window">
+								<img
+									class="character__art"
+									src={character.src}
+									alt={`${character.name} character`}
+									width={character.width}
+									height={character.height}
+									loading="lazy"
+									decoding="async"
+								/>
+							</div>
+						</div>
+						<div class="character__text">
+							<h3 class="character__name">{character.name}</h3>
+							<p class="character__blurb">{character.blurb}</p>
+						</div>
+					</li>
+				))
+			}
+		</ul>
+	</div>
+</section>
+
+<style>
+	.characters {
+		position: relative;
+		padding-block: var(--section-pad);
+	}
+
+	.characters__inner {
+		/* Above the decorative facets, like every other section. */
+		position: relative;
+		z-index: 1;
+		display: grid;
+		/* Lets its children shrink to the gutter. Without it a grid item will
+		   not go below its own min-content, which held the intro block 9px
+		   wider than the container and nudged the copy back over the facets. */
+		grid-template-columns: minmax(0, 1fr);
+		gap: var(--space-2xl);
+	}
+
+	/* The block sits in the middle of the section, but its text is left
+	   aligned inside it. */
+	.characters__head {
+		display: grid;
+		/* A column that cannot grow past the container. Without it the heading's
+		   negative margin widens the column it sits in, and the paragraphs
+		   below size themselves against that wider column — which walked them
+		   back out over the facets. */
+		grid-template-columns: minmax(0, 1fr);
+		min-width: 0;
+		justify-items: start;
+		gap: var(--space-2xs);
+		text-align: start;
+		max-width: var(--measure-wide);
+		margin-inline: auto;
+	}
+
+	/* This whole block is set a step down the scale on a phone, where it was
+	   taking up most of the first screen, and back up from 48rem. */
+	/* Bigger than the copy under it, and held inside the gutter rather than
+	   bleeding out to the edges like the other section headings — asked for
+	   directly, and it reads better wrapped over two lines than stretched
+	   across one. */
+	.characters__heading {
+		font-size: var(--text-xl);
+		text-transform: uppercase;
+		max-width: 30ch;
+	}
+
+	.characters__sub {
+		font-size: var(--text-sm);
+		font-weight: var(--weight-semibold);
+		color: var(--color-danger);
+		max-width: var(--measure);
+	}
+
+	/* The line that hands over to the six Divisions below it. */
+	.characters__lead-in {
+		margin-block-start: var(--space-md);
+		font-size: var(--text-base);
+		max-width: var(--measure-wide);
+		color: var(--color-text);
+	}
+
+	.characters__intro {
+		display: grid;
+		gap: var(--space-xs);
+		margin-block-start: var(--space-sm);
+		max-width: var(--measure-wide);
+		font-size: var(--text-sm);
+		color: var(--color-text);
+	}
+
+	@media (min-width: 48rem) {
+		.characters__heading {
+			font-size: var(--text-2xl);
+		}
+
+		.characters__sub {
+			font-size: var(--text-lg);
+		}
+
+		.characters__lead-in {
+			margin-block-start: var(--space-lg);
+			font-size: var(--text-xl);
+		}
+
+		.characters__intro {
+			gap: var(--space-sm);
+			margin-block-start: var(--space-md);
+			font-size: var(--text-base);
+		}
+	}
+
+	/* The phrases that carry the pitch, in the brightest brand green and a step
+	   larger. Asked for deliberately — worth knowing that this green measures
+	   2.3:1 against the page, well under the 4.5:1 that body text needs, so it
+	   is doing emphasis at the cost of legibility. --color-brand-strong is the
+	   same hue and passes, if these ever become hard to read. */
+	.characters__intro .pop {
+		font-size: 1.1em;
+		font-weight: var(--weight-bold);
+		color: var(--color-brand);
+	}
+
+	/* One per row, at every width. */
+	.characters__grid {
+		display: grid;
+		gap: var(--space-2xl);
+		list-style: none;
+		padding-inline: 0;
+	}
+
+	/* The row: art on one side, words on the other. On a phone they stack,
+	   art first. */
+	.character {
+		display: grid;
+		gap: var(--space-sm);
+		justify-items: start;
+		align-items: center;
+	}
+
+	@media (min-width: 48rem) {
+		.character {
+			grid-template-columns: var(--character-size) 1fr;
+			gap: var(--space-2xl);
+		}
+
+		/* The art moves to the second column and the words to the first, so the
+		   two swap sides without reordering the markup — a screen reader still
+		   meets the heading before its paragraph. */
+		.character[data-side="end"] {
+			grid-template-columns: 1fr var(--character-size);
+		}
+
+		.character[data-side="end"] .character__portrait {
+			grid-column: 2;
+			grid-row: 1;
+		}
+
+		.character[data-side="end"] .character__text {
+			grid-column: 1;
+			grid-row: 1;
+			text-align: end;
+		}
+	}
+
+	/* Hung slightly off true, and leaning the opposite way to the row above.
+	   The frame and the character turn together, as one picture would. */
+	.character__portrait {
+		position: relative;
+		width: var(--character-size);
+		transform: rotate(calc(var(--tilt-portrait) * -1));
+	}
+
+	/* justify-self is what puts the frame on the right on a phone, where the
+	   row has stacked into one column. From 48rem the portrait sits in a column
+	   cut to its exact width, so it has no effect there and the columns below
+	   do the swapping instead. */
+	.character[data-side="end"] .character__portrait {
+		justify-self: end;
+		transform: rotate(var(--tilt-portrait));
+	}
+
+	.character__frame {
+		display: block;
+		width: 100%;
+		height: auto;
+		/* Over the artwork, so the bevelled inner edge sits on top of it. */
+		position: relative;
+		z-index: 1;
+	}
+
+	/* The hole in the frame artwork, measured from the file itself: it starts
+	   13.5% in from the left, 13.3% from the right, and 11.1% in from the top
+	   and the bottom. Its proportions were chosen to match the artwork, so a
+	   character very nearly fills it, and overflow clips whatever is pushed
+	   past the edge by --character-fill.
+
+	   This is a div, and the image inside is sized against it, because the
+	   insets cannot be put on the <img> directly: on an absolutely positioned
+	   image, max-width: 100% is measured against the whole portrait rather than
+	   the inset box, so the character was drawn at the full width of the frame
+	   and hung out past its right-hand edge. */
+	.character__window {
+		position: absolute;
+		inset: 11.1% 13.3% 11.1% 13.5%;
+		overflow: hidden;
+	}
+
+	/* Fitted inside the opening at its own proportions, standing on the floor
+	   of the frame rather than floating in the middle of it, then nudged up a
+	   little from that same floor so the gap above the head closes.
+
+	   Never further than --character-room, which is this character's own
+	   headroom: past that the picture grows taller than the opening and the
+	   overflow above takes the top of their head with it. */
+	.character__art {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+		object-position: bottom center;
+		transform: scale(min(var(--character-fill), var(--character-room, 1)));
+		transform-origin: bottom center;
+	}
+
+	.character__text {
+		display: grid;
+		gap: var(--space-2xs);
+		max-width: var(--measure);
+	}
+
+	.character__name {
+		font-family: var(--font-heading);
+		font-weight: var(--weight-heading);
+		font-size: var(--text-3xl);
+		line-height: var(--leading-tight);
+		text-transform: uppercase;
+		color: var(--color-text);
+	}
+
+
+	.character__blurb {
+		color: var(--color-text-muted);
+	}
+</style>

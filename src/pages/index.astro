@@ -3,7 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import EdgeDecor from "../components/EdgeDecor.astro";
 import TopTicker from "../components/TopTicker.astro";
 import Hero from "../components/Hero.astro";
-import Stats from "../components/Stats.astro";
+import Characters from "../components/Characters.astro";
 import Projects from "../components/Projects.astro";
 import Faq from "../components/Faq.astro";
 import SiteFooter from "../components/SiteFooter.astro";
@@ -27,14 +27,16 @@ import { meta, site } from "../data/config";
 		from <body> instead.
 	*/}
 	<div class="page">
-		<EdgeDecor seed={1} tiles={22} />
+		{/* Tile count left to the component: it knows how many it takes to
+		    reach the bottom of a phone-width page. */}
+		<EdgeDecor seed={1} />
 
 		<div class="page__content">
 			<TopTicker />
 
 			<main>
 				<Hero />
-				<Stats />
+				<Characters />
 				<Projects />
 				<Faq />
 			</main>

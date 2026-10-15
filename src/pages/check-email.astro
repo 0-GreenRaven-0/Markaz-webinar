@@ -1,0 +1,60 @@
+---
+import OutcomePage from "../layouts/OutcomePage.astro";
+import EnvelopeScene from "../components/EnvelopeScene.astro";
+import { site } from "../data/config";
+
+/**
+ * Where the signup form sends people the moment their registration is saved.
+ *
+ * It asks nothing and calls nothing — no form, no API. Its whole job is to say
+ * the confirmation email is on its way, and to head off the most common reason
+ * people think it never arrived.
+ */
+---
+
+<OutcomePage
+	title={`Check your email — ${site.name}`}
+	description="Your place is reserved. Confirm it from the email we just sent you."
+>
+	<EnvelopeScene />
+
+	<h1 class="outcome__title">Almost there! Check your email</h1>
+
+	<p class="outcome__lead">
+		We sent you a confirmation email. Click the button inside to secure your spot.
+	</p>
+
+	<p class="outcome__tip">Can't find it? Check your Spam or Promotions folder.</p>
+
+	<a class="outcome__back" href="/">&larr; Back to the webinar</a>
+</OutcomePage>
+
+<style>
+	.outcome__title {
+		font-size: var(--text-2xl);
+		text-transform: uppercase;
+	}
+
+	.outcome__lead {
+		font-size: var(--text-lg);
+		max-width: 36ch;
+	}
+
+	/* The quiet line. Tinted rather than just grey, so it reads as a hint and
+	   not as another instruction. */
+	.outcome__tip {
+		padding: var(--space-xs) var(--space-md);
+		border-radius: var(--radius-md);
+		background: var(--color-brand-subtle);
+		color: var(--color-text);
+		font-size: var(--text-sm);
+		font-weight: var(--weight-medium);
+	}
+
+	.outcome__back {
+		margin-block-start: var(--space-sm);
+		font-size: var(--text-sm);
+		font-weight: var(--weight-semibold);
+		color: var(--color-brand-strong);
+	}
+</style>

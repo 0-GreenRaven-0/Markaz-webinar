@@ -1,0 +1,268 @@
+---
+interface Props {
+	/** Form field name, and the id the label points at. */
+	id: string;
+	/** The answers, in order. */
+	options: string[];
+	/** Shown until an answer is chosen. */
+	placeholder?: string;
+}
+
+const { id, options, placeholder = "Choose one" } = Astro.props;
+
+/**
+ * A dropdown built out of ordinary elements rather than a native <select>.
+ *
+ * A native one cannot be styled where it matters: the open list is drawn by the
+ * operating system, so it ignores the site's fonts, colours and angled edges
+ * entirely. This matches the country picker instead.
+ *
+ * It keeps the behaviour that matters: it is announced as a combobox, is fully
+ * keyboard operable, closes on Escape or an outside click, and writes to a
+ * hidden input so the form reads it exactly like any other field.
+ */
+---
+
+<div class="select" data-select>
+	<input type="hidden" name={id} value="" data-select-value />
+
+	<button
+		type="button"
+		class="select__trigger"
+		id={id}
+		aria-haspopup="listbox"
+		aria-expanded="false"
+		data-select-trigger
+		data-placeholder={placeholder}
+	>
+		<span class="select__label" data-select-label>{placeholder}</span>
+		<svg class="select__chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path
+				d="M6 9l6 6 6-6"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"></path>
+		</svg>
+	</button>
+
+	<ul class="select__panel" role="listbox" hidden data-select-panel>
+		{
+			options.map((option, i) => (
+				<li
+					class="select__option"
+					role="option"
+					id={`${id}-option-${i}`}
+					aria-selected="false"
+					data-value={option}
+				>
+					{option}
+				</li>
+			))
+		}
+	</ul>
+</div>
+
+<script>
+	for (const select of document.querySelectorAll<HTMLElement>("[data-select]")) {
+		const trigger = select.querySelector<HTMLButtonElement>("[data-select-trigger]")!;
+		const panel = select.querySelector<HTMLElement>("[data-select-panel]")!;
+		const labelEl = select.querySelector<HTMLElement>("[data-select-label]")!;
+		const valueInput = select.querySelector<HTMLInputElement>("[data-select-value]")!;
+		const options = [...select.querySelectorAll<HTMLElement>(".select__option")];
+		const placeholder = trigger.dataset.placeholder ?? "Choose one";
+		if (!options.length) continue;
+
+		let active = 0;
+
+		const setActive = (i: number) => {
+			active = Math.max(0, Math.min(i, options.length - 1));
+			for (const [index, option] of options.entries()) {
+				option.classList.toggle("is-active", index === active);
+			}
+			trigger.setAttribute("aria-activedescendant", options[active].id);
+			options[active].scrollIntoView({ block: "nearest" });
+		};
+
+		const open = () => {
+			panel.hidden = false;
+			trigger.setAttribute("aria-expanded", "true");
+			const chosen = options.findIndex((o) => o.getAttribute("aria-selected") === "true");
+			setActive(chosen >= 0 ? chosen : 0);
+		};
+
+		const close = () => {
+			panel.hidden = true;
+			trigger.setAttribute("aria-expanded", "false");
+			trigger.removeAttribute("aria-activedescendant");
+		};
+
+		const choose = (option: HTMLElement) => {
+			for (const other of options) other.setAttribute("aria-selected", "false");
+			option.setAttribute("aria-selected", "true");
+			const value = option.dataset.value ?? "";
+			valueInput.value = value;
+			labelEl.textContent = value || placeholder;
+			select.toggleAttribute("data-chosen", Boolean(value));
+			close();
+			trigger.focus();
+			// Lets the form clear this field's error the moment it is answered.
+			valueInput.dispatchEvent(new Event("input", { bubbles: true }));
+		};
+
+		trigger.addEventListener("click", () => (panel.hidden ? open() : close()));
+
+		trigger.addEventListener("keydown", (e) => {
+			if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
+				if (panel.hidden) {
+					e.preventDefault();
+					open();
+					return;
+				}
+			}
+			if (panel.hidden) return;
+
+			switch (e.key) {
+				case "ArrowDown":
+					e.preventDefault();
+					setActive(active + 1);
+					break;
+				case "ArrowUp":
+					e.preventDefault();
+					setActive(active - 1);
+					break;
+				case "Home":
+					e.preventDefault();
+					setActive(0);
+					break;
+				case "End":
+					e.preventDefault();
+					setActive(options.length - 1);
+					break;
+				case "Enter":
+				case " ":
+					e.preventDefault();
+					choose(options[active]);
+					break;
+				case "Escape":
+					e.preventDefault();
+					close();
+					break;
+				case "Tab":
+					close();
+					break;
+			}
+		});
+
+		for (const [i, option] of options.entries()) {
+			option.addEventListener("click", () => choose(option));
+			option.addEventListener("mousemove", () => setActive(i));
+		}
+
+		document.addEventListener("click", (e) => {
+			if (!panel.hidden && !select.contains(e.target as Node)) close();
+		});
+
+		/* Sent by the form when a conditional question is hidden again: the
+		   answer goes back to nothing, so what is submitted always matches what
+		   the visitor could actually see. */
+		select.addEventListener("select:reset", () => {
+			for (const option of options) option.setAttribute("aria-selected", "false");
+			valueInput.value = "";
+			labelEl.textContent = placeholder;
+			select.removeAttribute("data-chosen");
+			close();
+		});
+	}
+</script>
+
+<style>
+	.select {
+		position: relative;
+	}
+
+	/* The same leaning box as every other field. */
+	.select__trigger {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		width: 100%;
+		padding: var(--space-xs) var(--space-sm);
+		border: 2px solid var(--color-text);
+		border-radius: 0;
+		background: var(--color-surface-raised);
+		text-align: start;
+		transform: skewX(var(--field-skew));
+	}
+
+	.select__trigger:focus-visible {
+		outline: 2px solid var(--color-focus);
+		outline-offset: 1px;
+		border-color: var(--color-focus);
+	}
+
+	:global(.field[data-invalid]) .select__trigger {
+		border-color: var(--color-danger);
+	}
+
+	/* Contents sit straight inside the leaning box. */
+	.select__label,
+	.select__chevron {
+		transform: skewX(calc(var(--field-skew) * -1));
+	}
+
+	.select__label {
+		flex: 1;
+		min-width: 0;
+		font-size: var(--text-base);
+		/* Reads as placeholder text until an answer is picked. */
+		color: var(--color-text-muted);
+	}
+
+	.select[data-chosen] .select__label {
+		color: var(--color-text);
+	}
+
+	.select__chevron {
+		width: 1.1rem;
+		height: 1.1rem;
+		flex: none;
+		color: var(--color-text-muted);
+	}
+
+	.select__panel {
+		position: absolute;
+		z-index: 20;
+		inset-block-start: calc(100% + 0.375rem);
+		inset-inline-start: 0;
+		width: 100%;
+		margin: 0;
+		padding: var(--space-3xs);
+		list-style: none;
+		background: var(--color-surface-raised);
+		border: 2px solid var(--color-text);
+		border-radius: 0;
+		box-shadow: 0 12px 28px color-mix(in srgb, var(--color-text) 18%, transparent);
+		max-height: 16rem;
+		overflow-y: auto;
+	}
+
+	.select__option {
+		padding: var(--space-2xs) var(--space-xs);
+		font-size: var(--text-sm);
+		color: var(--color-text);
+		cursor: pointer;
+	}
+
+	/* One highlight for both the mouse and the keyboard, so the two never
+	   disagree about which row is current. */
+	.select__option.is-active {
+		background: var(--color-text);
+		color: var(--color-on-dark);
+	}
+
+	.select__option[aria-selected="true"] {
+		font-weight: var(--weight-semibold);
+	}
+</style>

@@ -17,16 +17,33 @@
  * literally tile n+1's top row — so they join invisibly while still varying at
  * every seam.
  *
+ * There are only CYCLE distinct tiles, drawn once into <defs> and then stamped
+ * down each edge with <use>. The run of seams is closed into a loop, so the
+ * last tile joins back onto the first and the column can be repeated for as
+ * long as the page happens to be. Drawing every tile out in full instead cost
+ * roughly 85 bytes per triangle, which on a phone — where the strip is narrow
+ * and the page is nine thousand pixels tall — came to more than the rest of
+ * the page put together, and was why the mesh used to run out partway down.
+ *
  * Decorative only: hidden from screen readers, ignores clicks, sits behind
  * content. Parent needs `position: relative`.
  */
 interface Props {
 	seed?: number;
-	/** How many tiles run down each edge. Extra tiles are simply clipped. */
+	/**
+	 * How many tiles are stamped down each edge. One tile is three times as
+	 * tall as the strip is wide, and the strip is at its narrowest on a phone,
+	 * which is where the most are needed: at 40px wide that is 120px a tile, so
+	 * 90 of them reach about 10,800px. Any that fall past the bottom of the
+	 * page are clipped and cost nothing to draw.
+	 */
 	tiles?: number;
 }
 
-const { seed = 0, tiles = 16 } = Astro.props;
+const { seed = 0, tiles = 90 } = Astro.props;
+
+/** How many distinct tiles are drawn before the run repeats. */
+const CYCLE = 12;
 
 /** Change this to reshuffle every decoration on the site. */
 const SEED = 8675309;
@@ -67,17 +84,20 @@ function rowXs(rand: () => number): number[] {
 
 function buildSide(sideSeed: number) {
 	// One shared row of points per seam, so neighbouring tiles line up exactly.
-	const seams = Array.from({ length: tiles + 1 }, (_, i) =>
+	// There are exactly CYCLE of them and the last tile reads seams[0] as its
+	// bottom row, which closes the loop and lets the run repeat seamlessly.
+	const seams = Array.from({ length: CYCLE }, (_, i) =>
 		rowXs(mulberry32(sideSeed + i * 7919)),
 	);
 
-	return Array.from({ length: tiles }, (_, t) => {
+	return Array.from({ length: CYCLE }, (_, t) => {
 		const rand = mulberry32(sideSeed + t * 31 + 5);
 		const grid: Pt[][] = [];
 
 		for (let r = 0; r <= ROWS; r++) {
 			if (r === 0) grid[r] = seams[t].map((x) => [x, 0] as Pt);
-			else if (r === ROWS) grid[r] = seams[t + 1].map((x) => [x, H] as Pt);
+			else if (r === ROWS)
+				grid[r] = seams[(t + 1) % CYCLE].map((x) => [x, H] as Pt);
 			else {
 				const xs = rowXs(rand);
 				grid[r] = xs.map(
@@ -118,16 +138,42 @@ function buildSide(sideSeed: number) {
 const base = SEED + seed * 977;
 const leftTiles = buildSide(base + 11);
 const rightTiles = buildSide(base + 613);
+
+/* Ids have to be unique in the document, in case the page ever carries two. */
+const uid = `decor${seed}`;
+const stamps = Array.from({ length: tiles }, (_, t) => t % CYCLE);
 ---
 
 <div class="decor" aria-hidden="true">
+	{/* The twelve tiles per side, drawn once. Nothing here renders on its own. */}
+	<svg class="decor__defs" focusable="false">
+		<defs>
+			{
+				leftTiles.map((facets, i) => (
+					<g id={`${uid}-s${i}`}>
+						{facets.map((f) => (
+							<polygon class={`facet facet--${f.tone}`} points={f.points} />
+						))}
+					</g>
+				))
+			}
+			{
+				rightTiles.map((facets, i) => (
+					<g id={`${uid}-e${i}`}>
+						{facets.map((f) => (
+							<polygon class={`facet facet--${f.tone}`} points={f.points} />
+						))}
+					</g>
+				))
+			}
+		</defs>
+	</svg>
+
 	<div class="decor__edge decor__edge--start">
 		{
-			leftTiles.map((facets) => (
+			stamps.map((i) => (
 				<svg class="decor__tile" viewBox={`0 0 ${W} ${H}`} focusable="false">
-					{facets.map((f) => (
-						<polygon class={`facet facet--${f.tone}`} points={f.points} />
-					))}
+					<use href={`#${uid}-s${i}`} />
 				</svg>
 			))
 		}
@@ -135,11 +181,9 @@ const rightTiles = buildSide(base + 613);
 
 	<div class="decor__edge decor__edge--end">
 		{
-			rightTiles.map((facets) => (
+			stamps.map((i) => (
 				<svg class="decor__tile" viewBox={`0 0 ${W} ${H}`} focusable="false">
-					{facets.map((f) => (
-						<polygon class={`facet facet--${f.tone}`} points={f.points} />
-					))}
+					<use href={`#${uid}-e${i}`} />
 				</svg>
 			))
 		}
@@ -150,10 +194,22 @@ const rightTiles = buildSide(base + 613);
 	.decor {
 		position: absolute;
 		inset: 0;
+		/* Behind the page content, which sits at z-index 1. */
 		z-index: 0;
 		pointer-events: none;
-		/* Not clipped: the mesh is allowed to finish on its own ragged edge
-		   rather than being cut off by the container. */
+		/* The column of tiles deliberately runs longer than the page. This
+		   trims whatever hangs off the bottom, and the overhang at the sides
+		   that keeps a gap from opening at the very edge. The mesh still
+		   finishes on its own ragged edge on the inner side, which is where
+		   the eye actually lands. */
+		overflow: hidden;
+	}
+
+	/* Holds the definitions only; takes up no space and paints nothing. */
+	.decor__defs {
+		position: absolute;
+		width: 0;
+		height: 0;
 		overflow: hidden;
 	}
 

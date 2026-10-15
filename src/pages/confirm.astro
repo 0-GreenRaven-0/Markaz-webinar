@@ -1,0 +1,259 @@
+---
+import OutcomePage from "../layouts/OutcomePage.astro";
+import { site, webinarDate } from "../data/config";
+
+/**
+ * The page the button in the confirmation email points at.
+ *
+ * The link carries the address as ?email=..., which this page hands to the
+ * Apps Script web app set as `confirmEndpoint` in src/data/config.ts. That
+ * script is what ticks the row on the sheet from Unconfirmed to Confirmed.
+ *
+ * All three states are in the markup from the start and swapped by setting
+ * data-state on the wrapper, so there is no flash of the wrong one and no
+ * layout built after the fact.
+ */
+---
+
+<OutcomePage
+	title={`Confirm your spot — ${site.name}`}
+	description="Confirming your place at the free Markaz Studio webinar."
+>
+	<div class="confirm" data-confirm data-state="loading">
+		<!-- Loading -->
+		<div class="confirm__state" data-state-loading>
+			<span class="confirm__spinner" aria-hidden="true"></span>
+			<h1 class="confirm__title">Confirming your spot...</h1>
+		</div>
+
+		<!-- Confirmed -->
+		<div class="confirm__state" data-state-ok hidden>
+			<span class="confirm__mark confirm__mark--ok" aria-hidden="true">&check;</span>
+			<h1 class="confirm__title">You're confirmed! See you at the webinar</h1>
+			<p class="confirm__when">{webinarDate}</p>
+			<a class="confirm__button" href="#" download="markaz-webinar.ics" data-calendar>
+				Add to calendar
+			</a>
+			<a class="confirm__back" href="/">&larr; Back to the webinar page</a>
+		</div>
+
+		<!-- Could not confirm -->
+		<div class="confirm__state" data-state-failed hidden>
+			<span class="confirm__mark confirm__mark--bad" aria-hidden="true">!</span>
+			<h1 class="confirm__title">We couldn't confirm your email</h1>
+			<p class="confirm__lead">
+				The link may have expired or been opened incorrectly. Email us and we'll confirm
+				your place by hand.
+			</p>
+			<a class="confirm__button" href={`mailto:${site.email}?subject=Confirm%20my%20webinar%20place`}>
+				Contact {site.email}
+			</a>
+			<a class="confirm__back" href="/">&larr; Back to the webinar page</a>
+		</div>
+
+		<!-- Announced to screen readers as the state changes. -->
+		<p class="visually-hidden" role="status" aria-live="polite" data-announce></p>
+	</div>
+</OutcomePage>
+
+<script>
+	import { confirmEndpoint, webinarAt, webinarDurationMinutes, site } from "../data/config";
+
+	const root = document.querySelector<HTMLElement>("[data-confirm]");
+
+	if (root) {
+		const announce = root.querySelector<HTMLElement>("[data-announce]");
+
+		const show = (state: "loading" | "ok" | "failed", said: string) => {
+			root.dataset.state = state;
+			for (const [key, panel] of [
+				["loading", root.querySelector<HTMLElement>("[data-state-loading]")],
+				["ok", root.querySelector<HTMLElement>("[data-state-ok]")],
+				["failed", root.querySelector<HTMLElement>("[data-state-failed]")],
+			] as const) {
+				if (panel) panel.hidden = key !== state;
+			}
+			if (announce) announce.textContent = said;
+		};
+
+		/*
+			A "+" in a query string arrives as a space, so "a+b@gmail.com" reaches
+			us as "a b@gmail.com". Putting the "+" back is what keeps tagged
+			addresses working — they are common enough to matter.
+		*/
+		const raw = new URLSearchParams(window.location.search).get("email") ?? "";
+		const email = raw.replace(/ /g, "+").trim();
+
+		/* The calendar invite is built from the date in config.ts, so it can
+		   never drift from what the rest of the site says. */
+		const attachCalendar = () => {
+			const link = root.querySelector<HTMLAnchorElement>("[data-calendar]");
+			if (!link) return;
+
+			const start = new Date(webinarAt);
+			if (Number.isNaN(start.getTime())) {
+				link.hidden = true;
+				return;
+			}
+			const end = new Date(start.getTime() + webinarDurationMinutes * 60_000);
+			const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+
+			// Real CRLF line endings: some calendar apps reject an .ics without them.
+			const ics = [
+				"BEGIN:VCALENDAR",
+				"VERSION:2.0",
+				`PRODID:-//${site.name}//Webinar//EN`,
+				"BEGIN:VEVENT",
+				`UID:webinar-${start.getTime()}@markazstudios.com`,
+				`DTSTAMP:${stamp(new Date())}`,
+				`DTSTART:${stamp(start)}`,
+				`DTEND:${stamp(end)}`,
+				`SUMMARY:${site.name} — free game development webinar`,
+				"DESCRIPTION:Your place is confirmed. The joining link is in your email.",
+				"END:VEVENT",
+				"END:VCALENDAR",
+			].join("\r\n");
+
+			// charset declared: the summary carries a dash that is not ASCII, and
+			// without it some desktop clients render it as mojibake.
+			link.href = URL.createObjectURL(
+				new Blob([ics], { type: "text/calendar;charset=utf-8" }),
+			);
+		};
+
+		const confirm = async () => {
+			if (!email) {
+				show("failed", "We could not confirm your email.");
+				return;
+			}
+			if (!confirmEndpoint || confirmEndpoint.includes("XXXX")) {
+				console.error(
+					"[confirm] confirmEndpoint is not set. Paste the Apps Script /exec URL into src/data/config.ts.",
+				);
+				show("failed", "We could not confirm your email.");
+				return;
+			}
+
+			try {
+				const res = await fetch(`${confirmEndpoint}?email=${encodeURIComponent(email)}`, {
+					headers: { accept: "application/json" },
+				});
+				const data = (await res.json()) as { ok?: boolean; updated?: number };
+
+				if (res.ok && data.ok) {
+					attachCalendar();
+					show("ok", "You are confirmed. See you at the webinar.");
+				} else {
+					show("failed", "We could not confirm your email.");
+				}
+			} catch (err) {
+				console.error("[confirm] request failed:", err);
+				show("failed", "We could not confirm your email.");
+			}
+		};
+
+		// Once per page load, and no sooner than the page being ready to show it.
+		void confirm();
+	}
+</script>
+
+<style>
+	.confirm {
+		display: grid;
+		justify-items: center;
+		gap: var(--space-md);
+	}
+
+	.confirm__state {
+		display: grid;
+		justify-items: center;
+		gap: var(--space-md);
+	}
+
+	.confirm__state[hidden] {
+		display: none;
+	}
+
+	.confirm__title {
+		font-size: var(--text-2xl);
+		text-transform: uppercase;
+	}
+
+	.confirm__lead {
+		max-width: 38ch;
+		color: var(--color-text-muted);
+	}
+
+	.confirm__when {
+		font-family: var(--font-heading);
+		font-weight: var(--weight-heading);
+		font-size: var(--text-lg);
+		padding: var(--space-xs) var(--space-md);
+		border-radius: var(--radius-md);
+		background: var(--color-brand-subtle);
+		color: var(--color-text);
+	}
+
+	/* The tick and the exclamation. Both are large enough that the colour is
+	   decoration rather than the only thing carrying the message — the heading
+	   under each one says it in words. */
+	.confirm__mark {
+		display: grid;
+		place-items: center;
+		width: 4rem;
+		height: 4rem;
+		border-radius: var(--radius-full);
+		font-size: var(--text-xl);
+		font-weight: var(--weight-bold);
+		color: var(--color-text-on-brand);
+	}
+
+	.confirm__mark--ok {
+		background: var(--color-brand-strong);
+	}
+
+	.confirm__mark--bad {
+		background: var(--color-danger);
+	}
+
+	.confirm__spinner {
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: var(--radius-full);
+		border: 3px solid var(--color-border-strong);
+		border-block-start-color: var(--color-brand-strong);
+		animation: confirm-spin 0.9s linear infinite;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.confirm__spinner {
+			animation-duration: 2.4s;
+		}
+	}
+
+	@keyframes confirm-spin {
+		to {
+			transform: rotate(1turn);
+		}
+	}
+
+	.confirm__button {
+		display: inline-block;
+		padding: var(--space-xs) var(--space-lg);
+		border-radius: var(--radius-md);
+		background: var(--color-brand-strong);
+		color: var(--color-text-on-brand);
+		font-weight: var(--weight-semibold);
+		text-decoration: none;
+	}
+
+	.confirm__button:hover {
+		background: var(--color-brand-hover);
+	}
+
+	.confirm__back {
+		font-size: var(--text-sm);
+		font-weight: var(--weight-semibold);
+		color: var(--color-brand-strong);
+	}
+</style>

@@ -29,7 +29,7 @@ export const faqs: Faq[] = [
 	},
 	{
 		q: "What will I learn EXACTLY from this cohort?",
-		a: "This cohort will walk you through 6 different departments (Game Designer, Programmer, 3D artist...), help you choose the department that fits you the most and provide you with full interactive coaching to become an expert in that department",
+		a: "This cohort will walk you through 6 different Divisions (Game Designer, Programmer, 3D artist...), help you choose the Division that fits you the most and provide you with full interactive coaching to become an expert in that Division",
 	},
 	{
 		q: "What If I couldn't attend the webinar?",

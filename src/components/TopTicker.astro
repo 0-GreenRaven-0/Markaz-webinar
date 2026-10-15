@@ -48,6 +48,8 @@ const items = Array.from({ length: REPEATS });
 	   show above and below. `hidden` would clip them, forcing wide padding
 	   here just to keep the bar's ends from being sliced off. */
 	.ticker-zone {
+		position: relative;
+		z-index: 2;
 		overflow-x: clip;
 		/* The tilt swings one end of the bar up and the other down, and how far it
 		   swings grows with screen width — so this room has to scale too. With a

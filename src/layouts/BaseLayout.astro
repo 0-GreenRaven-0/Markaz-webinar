@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import { metaPixelId } from "../data/config";
 
 interface Props {
 	/** Shown in the browser tab and in search results. */
@@ -18,6 +19,25 @@ const {
 	lang = "en",
 	dir = "ltr",
 } = Astro.props;
+
+/*
+	Meta Pixel, base code, exactly as Meta supplies it with the id substituted.
+
+	It is built as a string and written with set:html on purpose. Putting the
+	code between <script> tags in the markup instead wraps it in {`...`}, which
+	Astro emits literally — the browser then evaluates a template string and
+	discards it, so the pixel silently never loads.
+*/
+const pixelCode = `!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '${metaPixelId}');
+fbq('track', 'PageView');`;
 ---
 
 <!doctype html>
@@ -33,8 +53,32 @@ const {
 		{description && <meta property="og:description" content={description} />}
 		<meta property="og:type" content="website" />
 		<slot name="head" />
+
+		{/*
+			Meta Pixel, base code. is:inline keeps it exactly as Meta supplies it —
+			Astro would otherwise bundle it into a module, which defers it and
+			changes when fbq exists for any later event calls.
+
+			It loads on every page, including the privacy and terms pages, which is
+			what Meta's own setup expects. The id lives in config.ts; emptying it
+			there removes the script entirely.
+		*/}
+		{metaPixelId && <script is:inline set:html={pixelCode} />}
 	</head>
 	<body>
+		{
+			metaPixelId && (
+				<noscript>
+					<img
+						height="1"
+						width="1"
+						style="display:none"
+						alt=""
+						src={`https://www.facebook.com/tr?id=${metaPixelId}&ev=PageView&noscript=1`}
+					/>
+				</noscript>
+			)
+		}
 		<slot />
 	</body>
 </html>

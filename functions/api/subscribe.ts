@@ -14,6 +14,7 @@
  * never from import.meta.env — that is replaced at build time and would compile
  * the private key into the published files.
  */
+import { signupQuestions } from "../../src/data/config";
 import { getGoogleAccessToken, appendToSheet } from "../../src/lib/google-auth";
 import {
 	checkEmail,
@@ -29,7 +30,16 @@ interface Env {
 	BREVO_LIST_SIGNUPS?: string;
 }
 
-const SHEET_HEADERS = ["Full name", "Email", "Phone number", "Status", "Date"];
+/* Built from signupQuestions so the columns and the form can never drift
+   apart: add a question in config.ts and its column appears here. */
+const SHEET_HEADERS = [
+	"Full name",
+	"Email",
+	"Phone number",
+	...signupQuestions.map((question) => question.column),
+	"Status",
+	"Date",
+];
 
 /** Every signup lands as Unconfirmed; the column is yours to change by hand. */
 const DEFAULT_STATUS = "Unconfirmed";
@@ -93,7 +103,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 		timeZone: "Asia/Beirut",
 	}).format(new Date());
 
-	const row = [fullName, email, phone, DEFAULT_STATUS, stamp];
+	const row = [
+		fullName,
+		email,
+		phone,
+		...signupQuestions.map((question) => str(question.id)),
+		DEFAULT_STATUS,
+		stamp,
+	];
 
 	try {
 		const token = await getGoogleAccessToken(credsJson);

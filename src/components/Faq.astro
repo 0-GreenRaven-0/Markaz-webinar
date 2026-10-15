@@ -43,8 +43,14 @@ import { faqs } from "../data/faqs";
 	.faq {
 		position: relative;
 		overflow: hidden;
-		padding-block: var(--space-3xl);
+		padding-block: var(--section-pad);
 
+	}
+
+	/* Allowed out past the gutter on a phone, like the other headings: it is
+	   large enough to carry over the facets. */
+	.faq__head h2 {
+		margin-inline: var(--bleed-wide);
 	}
 
 	.faq__inner {
@@ -93,7 +99,7 @@ import { faqs } from "../data/faqs";
 
 	.faq__item {
 		--cut: 15px;
-		background: var(--color-bg);
+		background: var(--color-surface-raised);
 		clip-path: polygon(
 			0 0,
 			calc(100% - var(--cut)) 0,

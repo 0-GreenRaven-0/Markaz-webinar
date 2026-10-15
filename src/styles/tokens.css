@@ -73,7 +73,12 @@
 	     525A70  6.87:1  muted text */
 
 	/* Surfaces */
-	--color-bg: #ffffff;
+	--color-bg: #f0f0f0; /* the page itself */
+	/* Anything sitting ON the page — form fields, the country dropdown, the
+	   open FAQ panels. White, so they lift off the grey instead of merging
+	   into it. On a white page this was the same colour as --color-bg; it is
+	   now its own token so the two can move independently. */
+	--color-surface-raised: #ffffff;
 	--color-surface: #f8f8f8;
 	--color-surface-sunken: #eaeaea;
 	--color-border: #dadada;
@@ -103,12 +108,12 @@
 	--color-facet-mid: #cfcfcf;
 	--color-facet-soft: #e2e2e2;
 
-	/* Form-control borders need 3:1 against white to be perceivable
+	/* Form-control borders need 3:1 against the page to be perceivable
 	   (WCAG 1.4.11). --color-border is decorative only and fails that. */
-	--color-border-strong: #8d95a6; /* 3.01:1 on white */
+	--color-border-strong: #828a9c; /* 3.04:1 on the grey page */
 
 	/* Errors. The pale red used on dark panels fails badly on white. */
-	--color-danger: #b3261e;        /* 6.54:1 on white */
+	--color-danger: #b3261e;        /* 5.74:1 on the grey page */
 	--color-danger-on-dark: #ff8f8f;
 
 	--color-focus: #0c701a;
@@ -126,13 +131,42 @@
 	--video-skew: 4%;
 
 	/* Layout */
+	/* How wide one character illustration is drawn. */
+	--character-size: clamp(12rem, 30vw, 20rem); /* the framed portrait; the character inside it is ~69% of this */
+
+	/* How far the character is pushed past a plain fit inside the frame, to
+	   close the gap its own proportions leave. Anything over the opening is
+	   clipped at the frame's edge, so raise this gently. */
+	--character-fill: 1.06;
+
+	/* How far each framed portrait leans off true, like a picture hung by
+	   hand. Rows lean in alternate directions. */
+	--tilt-portrait: 3deg;
+
 	--measure: 68ch; /* comfortable max line length for body copy */
+	--measure-wide: 86ch; /* for intro copy that should run wider than body text */
 	--container-width: 72rem;
-	--container-gutter: var(--space-sm);
+	/* The faceted strip down each edge is 2.5rem wide on a phone and its inner
+	   boundary is ragged, reaching between 23px and 40px in. The gutter has to
+	   clear that or the copy is read over the top of the triangles. */
+	--container-gutter: var(--space-xl);
+	/* Pulls an element back out past that wide gutter, to the narrower one the
+	   page uses elsewhere. For things that do not need holding off the facets:
+	   headings, which are large enough to read over them, and the videos, which
+	   are pictures rather than text. Running copy and form fields keep the
+	   gutter. Zero from 48rem, where the gutter is already comfortable. */
+	--bleed-wide: calc(var(--space-sm) - var(--container-gutter));
+
+	/* Breathing room at the top and bottom of every section. A third of the
+	   height on a phone: two of these meeting left a gap most of a screen
+	   tall, with nothing in it. */
+	--section-pad: var(--space-lg);
 }
 
 @media (min-width: 48rem) {
 	:root {
 		--container-gutter: var(--space-lg);
+		--bleed-wide: 0px;
+		--section-pad: var(--space-3xl);
 	}
 }
