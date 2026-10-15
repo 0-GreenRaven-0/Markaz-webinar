@@ -1,29 +1,33 @@
 /**
- * Receives a signup from the form and records it.
+ * Receives a signup from the form and records it. Served at /api/subscribe.
  *
- * This runs on the server (a Cloudflare function), which is the only reason the
- * Google credentials and the Brevo key can be used at all — on a purely static
- * page anything the code can read, a visitor can read too.
+ * This is a Cloudflare PAGES FUNCTION, not an Astro route: any file under
+ * functions/ is run by Pages at the matching URL. That is the only reason the
+ * Google credentials and the Brevo key can be used at all — on the static page
+ * itself, anything the code can read, a visitor can read too.
  *
  * It writes to the Google Sheet and, when a Brevo key and list are configured,
  * creates the contact in Brevo as well. A Sheets failure is reported; a Brevo
  * failure is not allowed to lose the lead, since the row is already safe.
  *
- * SECRETS ARE READ FROM THE WORKERS RUNTIME, NOT FROM import.meta.env. Astro
- * replaces `import.meta.env.FOO` with the literal value at build time, which
- * bakes the private key into the worker bundle — and then whatever is set in
- * the Cloudflare dashboard is ignored, and rotating a key needs a rebuild
- * rather than a dashboard change.
- *
- * `cloudflare:workers` hands them over at the moment of the request instead, so
- * nothing is ever compiled in. (This used to be `locals.runtime.env`, which
- * Astro 7 removed — it now throws rather than returning the values.)
+ * SECRETS COME FROM `context.env`, which Cloudflare fills in per request, and
+ * never from import.meta.env — that is replaced at build time and would compile
+ * the private key into the published files.
  */
-export const prerender = false;
+import { getGoogleAccessToken, appendToSheet } from "../../src/lib/google-auth";
+import {
+	checkEmail,
+	honeypotTripped,
+	logRejection,
+	normalizeEmail,
+} from "../../src/lib/email-check";
 
-import type { APIRoute } from "astro";
-import { getGoogleAccessToken, appendToSheet } from "../../lib/google-auth";
-import { checkEmail, honeypotTripped, logRejection, normalizeEmail } from "../../lib/email-check";
+interface Env {
+	GOOGLE_SERVICE_ACCOUNT_JSON?: string;
+	GOOGLE_SHEET_SIGNUPS?: string;
+	BREVO_API_KEY?: string;
+	BREVO_LIST_SIGNUPS?: string;
+}
 
 const SHEET_HEADERS = ["Full name", "Email", "Phone number", "Status", "Date"];
 
@@ -36,19 +40,13 @@ const json = (body: unknown, status = 200) =>
 		headers: { "Content-Type": "application/json" },
 	});
 
-export const POST: APIRoute = async ({ request }) => {
-	// Handed over by the Workers runtime per request, and in `astro dev` by the
-	// platform proxy reading .dev.vars. Deliberately NOT read via
-	// import.meta.env: a dynamic lookup there makes Vite inline the entire env
-	// object into the bundle, which is exactly how the private key ended up
-	// compiled into the build once before.
-	const { env } = await import("cloudflare:workers");
-	const runtimeEnv = env as unknown as Record<string, string | undefined>;
-	const readEnv = (key: string): string => runtimeEnv?.[key] ?? "";
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+	const env = context.env ?? ({} as Env);
+	const readEnv = (key: keyof Env): string => env[key] ?? "";
 
 	let body: Record<string, unknown>;
 	try {
-		body = (await request.json()) as Record<string, unknown>;
+		body = (await context.request.json()) as Record<string, unknown>;
 	} catch {
 		return json({ success: false, error: "Malformed request." }, 400);
 	}

@@ -1,24 +1,17 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import cloudflare from '@astrojs/cloudflare';
 
 // https://astro.build/config
 export default defineConfig({
-	// The pages stay static. Only the files under src/pages/api opt out of
-	// prerendering, and those run as Cloudflare functions — which is what lets
-	// the site hold secrets the browser never sees.
+	// A purely static build: `astro build` writes finished HTML into dist/, and
+	// that is the folder Cloudflare Pages publishes.
+	//
+	// There is deliberately NO Cloudflare adapter. The adapter targets Workers
+	// and splits the output into dist/client and dist/server, which is what put
+	// the site at /client/ and left the server code downloadable at
+	// /server/entry.mjs. The two server endpoints live in functions/ instead,
+	// as Pages Functions, which Cloudflare runs without an adapter.
 	output: 'static',
-
-	// No part of this site uses sessions. Left on, the adapter asks Cloudflare
-	// for a KV namespace to store them in, and a deploy that has to create one
-	// stops to ask — which nothing can answer during an automated build.
-	session: false,
-
-	// platformProxy gives `astro dev` the same locals.runtime.env that Cloudflare
-	// provides in production, read from .dev.vars.
-	adapter: cloudflare({
-		platformProxy: { enabled: true },
-	}),
 
 	// The floating Astro dev toolbar is off. It only ever appeared during local
 	// development and was never part of the built site, but it also injected

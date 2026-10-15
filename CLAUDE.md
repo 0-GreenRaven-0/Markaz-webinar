@@ -151,6 +151,27 @@ It runs before the headline is parsed, so there is no visible swap. With
 JavaScript off, headline A shows. The chosen variant is submitted with the form
 as `hook_variant` — without that, the test produces no data.
 
+### Hosting: Cloudflare Pages, never Workers
+
+The user has said explicitly: never host this site as a Worker.
+
+`astro build` makes a plain static `dist/`, which is what Pages publishes.
+There is NO Cloudflare adapter — the adapter targets Workers and splits the
+output into `dist/client` and `dist/server`, which is what once put the live
+site at `/client/` and returned 404 at the root.
+
+The two server endpoints are **Pages Functions**, in `functions/api/`. Any file
+there is run by Pages at the matching URL, with secrets handed over per request
+as `context.env`.
+
+Pages project settings: build command `npm run build`, output directory `dist`.
+
+To run them locally, `astro dev` is not enough — it serves the pages but not
+`functions/`. Build first, then `npx wrangler pages dev dist`, which reads
+.dev.vars for the secrets.
+
+**Do not deploy or push.** The user does both themselves.
+
 ### The signup form
 
 The form POSTs JSON to `/api/subscribe`, which runs as a Cloudflare function.

@@ -1,20 +1,23 @@
 /**
  * How many seats are left: the number set in config.ts, minus everyone already
- * on the signup sheet.
+ * on the signup sheet. Served at /api/seats.
  *
- * The page itself is static — it is built once and served from Cloudflare's
- * edge — so the figure cannot be baked into the HTML. The counter asks this
- * route for it instead, which is also why the page shows a loading state first.
+ * A Cloudflare Pages Function — the page itself is static, built once and
+ * served from the edge, so the figure cannot be baked into the HTML. The
+ * counter asks this for it instead, which is also why the page shows a loading
+ * state first.
  *
  * It NEVER fails in a way the visitor can see. If the sheet cannot be read, the
  * configured number is returned and the counter shows that: a seat count that
  * is slightly stale is harmless, a broken counter in the hero is not.
  */
-export const prerender = false;
+import { seatsRemaining as configuredSeats } from "../../src/data/config";
+import { getGoogleAccessToken, countSheetRows } from "../../src/lib/google-auth";
 
-import type { APIRoute } from "astro";
-import { seatsRemaining as configuredSeats } from "../../data/config";
-import { getGoogleAccessToken, countSheetRows } from "../../lib/google-auth";
+interface Env {
+	GOOGLE_SERVICE_ACCOUNT_JSON?: string;
+	GOOGLE_SHEET_SIGNUPS?: string;
+}
 
 /**
  * Seconds a browser may reuse this answer. Short enough that the number moves
@@ -32,12 +35,10 @@ const json = (body: unknown, status = 200) =>
 		},
 	});
 
-export const GET: APIRoute = async () => {
-	const { env } = await import("cloudflare:workers");
-	const runtimeEnv = env as unknown as Record<string, string | undefined>;
-
-	const credsJson = runtimeEnv?.GOOGLE_SERVICE_ACCOUNT_JSON ?? "";
-	const sheetId = runtimeEnv?.GOOGLE_SHEET_SIGNUPS ?? "";
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+	const env = context.env ?? ({} as Env);
+	const credsJson = env.GOOGLE_SERVICE_ACCOUNT_JSON ?? "";
+	const sheetId = env.GOOGLE_SHEET_SIGNUPS ?? "";
 
 	if (!credsJson || !sheetId) {
 		console.error("[seats] sheet is not configured; falling back to the number in config.ts");
