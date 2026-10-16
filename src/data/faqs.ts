@@ -13,7 +13,7 @@ export interface Faq {
 export const faqs: Faq[] = [
 	{
 		q: "Who's this Cohort for?",
-		a: "This is for every individual in Lebanon who aspires to become a talented game developer and tired of being stuck in tutorials or from the headache of having to learn everything by themselves",
+		a: "This is for every individual in Lebanon who aspires to become a talented game developer and is tired of being stuck in tutorials or from the headache of having to learn everything by themselves",
 	},
 	{
 		q: "Is this an online program or do I need to personally attend an academy?",
@@ -21,7 +21,7 @@ export const faqs: Faq[] = [
 	},
 	{
 		q: "What makes this program special from the game development courses at private universities or online courses?",
-		a: "This is a one-of-a-kind program which was put together by developers with years of experience who worked on 10+ projects that generated $550,000+ in revenue and coached a lot of students which you're about to see their projects in the free webinar",
+		a: "This is a one-of-a-kind program which was put together by developers with years of experience who worked on 10+ projects that generated $550,000+ in revenue and coached a lot of students whose projects you're about to see in the free webinar",
 	},
 	{
 		q: "Do I need experience to join or benefit from the cohort?",
@@ -33,7 +33,7 @@ export const faqs: Faq[] = [
 	},
 	{
 		q: "What If I couldn't attend the webinar?",
-		a: "Replays for the webinar aren't guaranteed so we highly recommend that you attend and not miss out on such huge opportunity",
+		a: "Replays for the webinar aren't guaranteed so we highly recommend that you attend and not miss out on such a huge opportunity",
 	},
 	{
 		q: "Is game development a good career for IT or computer science students/graduates?",

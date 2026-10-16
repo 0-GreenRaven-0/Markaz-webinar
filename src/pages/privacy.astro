@@ -6,13 +6,14 @@ import { site } from "../data/config";
  * Ported from the droparabia-landing policy and rewritten to describe what THIS
  * site actually does.
  *
- * The Meta Pixel sections ARE here because the pixel is installed (see
- * metaPixelId in config.ts). Google Analytics, Tag Manager and Calendly are
- * still left out, because the site runs none of them — a policy that claims
+ * The Meta Pixel, Google Analytics, Google Tag Manager and Google Ads
+ * sections ARE here because all four are installed (see metaPixelId,
+ * gaMeasurementId, gtmContainerId and googleAdsId in config.ts). Calendly is
+ * still left out, because the site does not run it — a policy that claims
  * tracking the site does not do is worse for the visitor than saying nothing.
  *
- * If the pixel is ever removed, section 3 and the Meta line in section 4 have
- * to go with it.
+ * If any of these is ever removed, update section 3 and its line in section
+ * 4 to match — this file does not update itself when config.ts changes.
  */
 ---
 
@@ -55,14 +56,16 @@ import { site } from "../data/config";
 	<section>
 		<h2>3. Cookies and tracking</h2>
 		<p>
-			This site runs the <strong>Meta Pixel</strong>, so that we can measure how our
-			advertising performs and show relevant ads on Facebook and Instagram. It sets cookies
-			and may collect information such as your IP address, browser details, the pages you
-			visit and what you do on them.
+			This site runs the <strong>Meta Pixel</strong> and Google's advertising and analytics
+			tools (<strong>Google Analytics</strong>, <strong>Google Tag Manager</strong> and
+			<strong>Google Ads</strong>), so that we can measure how our advertising performs and
+			show relevant ads on Facebook, Instagram and Google. They set cookies and may collect
+			information such as your IP address, browser details, the pages you visit and what you
+			do on them.
 		</p>
 		<p>
-			You can control ad personalisation in your Facebook and Instagram ad settings, and
-			block cookies through your browser settings.
+			You can control ad personalisation in your Facebook and Instagram ad settings and your
+			Google ad settings, and block cookies through your browser settings.
 		</p>
 		<p>
 			Separately from that, your browser keeps a short note of which version of the headline
@@ -82,6 +85,7 @@ import { site } from "../data/config";
 			<li><strong>Brevo</strong> — the service that sends you the webinar link and reminders</li>
 			<li><strong>Cloudflare</strong> — hosts this site and passes your form submission to the above</li>
 			<li><strong>Meta Platforms</strong> — advertising measurement and optimisation</li>
+			<li><strong>Google</strong> — Analytics, Tag Manager and Ads, for advertising measurement and optimisation</li>
 		</ul>
 	</section>
 
