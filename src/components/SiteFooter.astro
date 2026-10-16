@@ -20,6 +20,21 @@ import { site } from "../data/config";
 			height="1007"
 			decoding="async"
 		/>
+
+		<a
+			class="footer__whatsapp"
+			href="https://wa.me/96171914036"
+			target="_blank"
+			rel="noopener noreferrer"
+		>
+			<svg class="footer__whatsapp-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+				<path
+					fill="currentColor"
+					d="M12.04 2c-5.52 0-10 4.48-10 10 0 1.77.46 3.43 1.27 4.88L2 22l5.25-1.38A9.96 9.96 0 0 0 12.04 22c5.52 0 10-4.48 10-10s-4.48-10-10-10Zm0 18.13c-1.6 0-3.14-.43-4.48-1.24l-.32-.19-3.12.82.83-3.04-.21-.32a8.1 8.1 0 0 1-1.25-4.33c0-4.52 3.68-8.2 8.2-8.2s8.2 3.68 8.2 8.2-3.68 8.3-8.2 8.3Zm4.5-6.16c-.25-.12-1.46-.72-1.68-.8-.23-.08-.39-.12-.56.12-.17.25-.63.8-.78.96-.14.16-.28.18-.53.06-1.45-.72-2.4-1.29-3.36-2.92-.25-.44.25-.41.72-1.36.08-.16.04-.3-.04-.42-.08-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.42-.14-.01-.3-.01-.47-.01-.16 0-.42.06-.64.3-.23.25-.86.84-.86 2.04 0 1.2.88 2.36 1 2.52.12.16 1.72 2.63 4.17 3.58 2 .79 2.4.63 2.84.59.44-.04 1.46-.6 1.66-1.18.2-.57.2-1.06.14-1.17-.06-.11-.23-.17-.48-.29Z"
+				></path>
+			</svg>
+			<span>If you have any more questions feel free to contact us on Whatsapp</span>
+		</a>
 	</div>
 
 	<div class="container footer__base">
@@ -40,7 +55,9 @@ import { site } from "../data/config";
 
 	.footer__inner {
 		display: flex;
-		justify-content: center;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-md);
 	}
 
 	/* The source file carries a lot of empty margin around the mark, so the box
@@ -48,6 +65,33 @@ import { site } from "../data/config";
 	.footer__logo {
 		width: clamp(18rem, 62vw, 48rem);
 		height: auto;
+	}
+
+	.footer__whatsapp {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2xs);
+		color: var(--color-on-dark);
+		font-size: var(--text-sm);
+		font-weight: var(--weight-medium);
+		text-align: center;
+		text-decoration: none;
+		text-underline-offset: 0.25em;
+	}
+
+	.footer__whatsapp:hover {
+		/* The bright brand green, which only works against a dark field — same
+		   treatment as .footer__link's hover state above. */
+		color: var(--color-brand);
+	}
+
+	.footer__whatsapp-icon {
+		width: 1.25em;
+		height: 1.25em;
+		flex-shrink: 0;
+		/* Decorative shape, not text, so the brand green is fine here — see the
+		   brand colour rules in CLAUDE.md. */
+		color: var(--color-brand);
 	}
 
 	.footer__base {
