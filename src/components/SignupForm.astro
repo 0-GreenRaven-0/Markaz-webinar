@@ -729,10 +729,12 @@ for (let r = 0; r < ROWS; r++) {
 	}
 
 	/* Code and number share one line at every width — the select only needs
-	   room for a flag, a dial code and a chevron. */
+	   room for a flag, a dial code and a chevron, so its track is capped well
+	   short of the phone number input's, which is the field actually worth
+	   the width. */
 	.phone {
 		display: grid;
-		grid-template-columns: minmax(6.25rem, 9rem) 1fr;
+		grid-template-columns: minmax(6.25rem, 7.5rem) 1fr;
 		gap: var(--space-2xs);
 	}
 
