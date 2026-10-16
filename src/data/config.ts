@@ -164,3 +164,15 @@ export const gtmContainerId = "GTM-MBG6K7WT";
  * into the page at all.
  */
 export const gaMeasurementId = "G-BD8YVC85KE";
+
+/**
+ * Google Ads conversion id, used by its own gtag.js snippet in BaseLayout.
+ *
+ * A third, separate Google tag — not Google Analytics above (that id starts
+ * "G-") and not Google Tag Manager (that id starts "GTM-"). This one starts
+ * "AW-" and is what Google Ads uses to track conversions from ad clicks.
+ *
+ * Empty disables it the same way as metaPixelId above: no script is written
+ * into the page at all.
+ */
+export const googleAdsId = "AW-18516836797";

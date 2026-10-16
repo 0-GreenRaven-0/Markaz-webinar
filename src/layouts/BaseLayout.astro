@@ -1,6 +1,6 @@
 ---
 import "../styles/global.css";
-import { metaPixelId, gtmContainerId, gaMeasurementId } from "../data/config";
+import { metaPixelId, gtmContainerId, gaMeasurementId, googleAdsId } from "../data/config";
 
 interface Props {
 	/** Shown in the browser tab and in search results. */
@@ -47,6 +47,20 @@ const gaCode = `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
 gtag('config', '${gaMeasurementId}');`;
+
+/*
+	Google Ads conversion tracking, base code, exactly as Google supplies it
+	with the conversion id substituted. A third, separate tag — not Google
+	Analytics above (that id starts "G-") — handed over as its own snippet, so
+	it is installed as its own snippet rather than folded into the other two.
+
+	Built as a string and written with set:html for the same reason as the
+	other snippets on this page — see the Meta Pixel comment below.
+*/
+const googleAdsCode = `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${googleAdsId}');`;
 
 /*
 	Meta Pixel, base code, exactly as Meta supplies it with the id substituted.
@@ -98,6 +112,20 @@ fbq('track', 'PageView');`;
 			/>
 		)}
 		{gaMeasurementId && <script is:inline set:html={gaCode} />}
+
+		{/*
+			Google Ads conversion tracking, base code. Same two-piece pattern as
+			Google Analytics just above — its own loader script, then its own
+			inline config call, exactly as Google supplies it.
+		*/}
+		{googleAdsId && (
+			<script
+				is:inline
+				async
+				src={`https://www.googletagmanager.com/gtag/js?id=${googleAdsId}`}
+			/>
+		)}
+		{googleAdsId && <script is:inline set:html={googleAdsCode} />}
 
 		<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 		<link rel="apple-touch-icon" href="/icon-180.png" />
