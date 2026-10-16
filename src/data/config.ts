@@ -153,3 +153,14 @@ export const metaPixelId = "1814348579981984";
  * into the page at all.
  */
 export const gtmContainerId = "GTM-MBG6K7WT";
+
+/**
+ * Google Analytics (GA4) measurement id, used by the gtag.js snippet in
+ * BaseLayout. This is separate from Google Tag Manager above — GTM is a
+ * container that can fire GA and other tags from inside it, while this is
+ * GA's own direct tag. Both were supplied separately, so both are installed.
+ *
+ * Empty disables it the same way as metaPixelId above: no script is written
+ * into the page at all.
+ */
+export const gaMeasurementId = "G-BD8YVC85KE";

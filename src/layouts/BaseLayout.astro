@@ -1,6 +1,6 @@
 ---
 import "../styles/global.css";
-import { metaPixelId, gtmContainerId } from "../data/config";
+import { metaPixelId, gtmContainerId, gaMeasurementId } from "../data/config";
 
 interface Props {
 	/** Shown in the browser tab and in search results. */
@@ -33,6 +33,20 @@ new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','${gtmContainerId}');`;
+
+/*
+	Google Analytics (gtag.js), base code, exactly as Google supplies it with
+	the measurement id substituted. Separate from Google Tag Manager above —
+	this was handed over as its own snippet, so it is installed as its own
+	snippet rather than folded into the GTM one.
+
+	Built as a string and written with set:html for the same reason as the
+	other two snippets on this page — see the Meta Pixel comment below.
+*/
+const gaCode = `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${gaMeasurementId}');`;
 
 /*
 	Meta Pixel, base code, exactly as Meta supplies it with the id substituted.
@@ -68,6 +82,22 @@ fbq('track', 'PageView');`;
 			as a module and change when it actually runs.
 		*/}
 		{gtmContainerId && <script is:inline set:html={gtmCode} />}
+
+		{/*
+			Google Analytics (gtag.js), base code. Two pieces, in the order Google
+			supplies them: the loader script tagged with the measurement id, then
+			the inline config call. is:inline on both for the same reason as the
+			rest of this page's tracking snippets — Astro would otherwise bundle or
+			defer them.
+		*/}
+		{gaMeasurementId && (
+			<script
+				is:inline
+				async
+				src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
+			/>
+		)}
+		{gaMeasurementId && <script is:inline set:html={gaCode} />}
 
 		<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
 		<link rel="apple-touch-icon" href="/icon-180.png" />
