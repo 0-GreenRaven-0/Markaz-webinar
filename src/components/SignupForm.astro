@@ -491,6 +491,15 @@ for (let r = 0; r < ROWS; r++) {
 			const dial = combo?.dataset.dial ?? "";
 			const phone = String(data.get("phone") ?? "").trim();
 
+			// Set once per session by BaseLayout.astro on first landing — see the
+			// comment on trafficSourceJs there. Empty if storage was blocked.
+			let trafficSource = "";
+			try {
+				trafficSource = sessionStorage.getItem("markaz:traffic_source") ?? "";
+			} catch {
+				// Private mode, or storage refused.
+			}
+
 			const payload = {
 				// Split as well as whole, so either shape is usable downstream.
 				full_name: full,
@@ -505,6 +514,7 @@ for (let r = 0; r < ROWS; r++) {
 				...Object.fromEntries(QUESTION_IDS.map((id) => [id, String(data.get(id) ?? "")])),
 				// Which headline this visitor saw, so you can tell which one converts.
 				hook_variant: document.documentElement.dataset.hook ?? "",
+				traffic_source: trafficSource,
 				submitted_at: new Date().toISOString(),
 			};
 

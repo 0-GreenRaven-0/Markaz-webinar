@@ -39,6 +39,7 @@ const SHEET_HEADERS = [
 	...signupQuestions.map((question) => question.column),
 	"Status",
 	"Date",
+	"Traffic Source",
 ];
 
 /** Every signup lands as Unconfirmed; the column is yours to change by hand. */
@@ -110,6 +111,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 		...signupQuestions.map((question) => str(question.id)),
 		DEFAULT_STATUS,
 		stamp,
+		str("traffic_source"),
 	];
 
 	try {

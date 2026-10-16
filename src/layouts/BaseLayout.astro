@@ -21,6 +21,53 @@ const {
 } = Astro.props;
 
 /*
+	Records how this visitor arrived, once per browsing session, so the signup
+	sheet can carry a "Traffic Source" column without a visitor who clicks an
+	internal link (say, from /index to the form) losing the ad click that
+	actually brought them here. First touch wins: the sessionStorage check at
+	the top means a later page view in the same session never overwrites it.
+
+	Checked in this order: a Google Ads click id, then a Meta/Facebook ads
+	click id, then utm_source/utm_medium if the link carries them, then the
+	referring site's domain, then "Direct" if none of the above apply.
+
+	Read back by SignupForm.astro at submit time and sent to /api/subscribe as
+	traffic_source, which writes it into the sheet's last column.
+*/
+const trafficSourceJs = `(function () {
+	var KEY = "markaz:traffic_source";
+	try {
+		if (window.sessionStorage.getItem(KEY)) return;
+	} catch (e) {
+		return;
+	}
+	var params = new URLSearchParams(window.location.search);
+	var source = "";
+	if (params.get("gclid")) {
+		source = "Google Ads";
+	} else if (params.get("fbclid")) {
+		source = "Facebook Ads";
+	} else if (params.get("utm_source")) {
+		source = params.get("utm_source");
+		var medium = params.get("utm_medium");
+		if (medium) source += " / " + medium;
+	} else if (document.referrer) {
+		try {
+			source = new URL(document.referrer).hostname.replace(/^www\\./, "") + " (referral)";
+		} catch (e) {
+			source = "Referral";
+		}
+	} else {
+		source = "Direct";
+	}
+	try {
+		window.sessionStorage.setItem(KEY, source);
+	} catch (e) {
+		/* private mode or blocked storage - traffic_source submits empty */
+	}
+})();`;
+
+/*
 	Google Tag Manager, base code, exactly as Google supplies it with the
 	container id substituted. Built as a string and written with set:html for
 	the same reason as the Meta Pixel snippet just below — see its comment.
@@ -87,6 +134,13 @@ fbq('track', 'PageView');`;
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+		{/*
+			Records the visitor's traffic source for the signup sheet — see the
+			comment above trafficSourceJs. Runs before anything else so it has the
+			original landing URL's query string, not whatever a later page strips.
+		*/}
+		<script is:inline set:html={trafficSourceJs} />
 
 		{/*
 			Google Tag Manager, base code. As high in <head> as it can sit without
