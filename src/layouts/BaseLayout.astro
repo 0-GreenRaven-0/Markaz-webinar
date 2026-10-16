@@ -27,9 +27,23 @@ const {
 	actually brought them here. First touch wins: the sessionStorage check at
 	the top means a later page view in the same session never overwrites it.
 
-	Checked in this order: a Google Ads click id, then a Meta/Facebook ads
-	click id, then utm_source/utm_medium if the link carries them, then the
-	referring site's domain, then "Direct" if none of the above apply.
+	Checked in this order, and the order matters:
+
+	1. utm_source/utm_medium — if a campaign was deliberately tagged, that is
+	   the most specific, intentional signal, so it is trusted first and never
+	   overridden by a click id the platform auto-appends alongside it (Google
+	   Ads auto-tagging + a manual UTM suffix both land on the same link).
+	2. gclid/gbraid/wbraid — Google only ever attaches one of these to a PAID
+	   Google Ads click; an organic search result never gets one. Safe to
+	   state outright as "Google Ads".
+	3. fbclid — by contrast, Facebook attaches this to ANY link opened inside
+	   Facebook, Instagram or Messenger, an organic share exactly as much as a
+	   paid ad. Labelling it "Facebook Ads" would overstate how many of these
+	   were actually paid, so it stays neutral: "Facebook / Instagram".
+	4. The referring site's domain — skipped when it is this site's own
+	   domain, which only ever means an internal navigation (not a real
+	   referral) happened to be the first page view counted this session.
+	5. "Direct" if none of the above apply.
 
 	Read back by SignupForm.astro at submit time and sent to /api/subscribe as
 	traffic_source, which writes it into the sheet's last column.
@@ -43,17 +57,20 @@ const trafficSourceJs = `(function () {
 	}
 	var params = new URLSearchParams(window.location.search);
 	var source = "";
-	if (params.get("gclid")) {
+	var utmSource = params.get("utm_source");
+	if (utmSource) {
+		source = utmSource.trim().toLowerCase();
+		var medium = params.get("utm_medium");
+		if (medium) source += " / " + medium.trim().toLowerCase();
+	} else if (params.get("gclid") || params.get("gbraid") || params.get("wbraid")) {
 		source = "Google Ads";
 	} else if (params.get("fbclid")) {
-		source = "Facebook Ads";
-	} else if (params.get("utm_source")) {
-		source = params.get("utm_source");
-		var medium = params.get("utm_medium");
-		if (medium) source += " / " + medium;
+		source = "Facebook / Instagram";
 	} else if (document.referrer) {
 		try {
-			source = new URL(document.referrer).hostname.replace(/^www\\./, "") + " (referral)";
+			var refHost = new URL(document.referrer).hostname.replace(/^www\\./, "");
+			var selfHost = window.location.hostname.replace(/^www\\./, "");
+			source = refHost && refHost !== selfHost ? refHost + " (referral)" : "Direct";
 		} catch (e) {
 			source = "Referral";
 		}
