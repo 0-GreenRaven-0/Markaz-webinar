@@ -22,4 +22,4 @@ export const hooks: Hook[] = [
 ];
 
 export const subHeadline =
-	"Discover the most unique program in whole Lebanon that'll take you from ZERO to a talented game developer";
+	"Discover the most unique program in whole Lebanon that'll take you from ZERO to a talented & successful game developer";

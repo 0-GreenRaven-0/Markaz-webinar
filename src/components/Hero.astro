@@ -74,9 +74,8 @@ const hookCss = [
 		<p class="hero__sub">{subHeadline}</p>
 
 		<div class="hero__stats">
-			<Countdown />
-			<span class="hero__stats-divider" aria-hidden="true"></span>
 			<SeatsCounter />
+			<Countdown />
 		</div>
 
 		<div class="hero__form">
@@ -130,29 +129,17 @@ const hookCss = [
 	/* Which headline is shown is decided by the generated rules above, built
 	   from hooks.ts. Nothing about it is written out by hand here. */
 
+	/* Stacked, seats counter on top and the countdown beneath it — the seat
+	   count is the more urgent of the two, so it leads. */
 	.hero__stats {
 		display: flex;
+		flex-direction: column;
 		align-items: center;
-		justify-content: center;
-		flex-wrap: wrap;
-		gap: var(--space-sm);
-	}
-
-	.hero__stats-divider {
-		width: 3px;
-		align-self: stretch;
-		background: var(--color-text);
-	}
-
-	/* On a narrow screen the two stack, so a vertical rule makes no sense. */
-	@media (max-width: 40rem) {
-		.hero__stats-divider {
-			display: none;
-		}
+		gap: var(--space-xs);
 	}
 
 	.hero__sub {
-		font-size: var(--text-sm);
+		font-size: var(--text-base);
 		color: var(--color-text);
 		max-width: 52ch;
 	}
@@ -165,7 +152,7 @@ const hookCss = [
 		}
 
 		.hero__sub {
-			font-size: var(--text-xs);
+			font-size: var(--text-sm);
 		}
 	}
 

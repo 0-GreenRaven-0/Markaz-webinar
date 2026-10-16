@@ -119,7 +119,7 @@ export const signupQuestions: SignupQuestion[] = [
 	{
 		id: "enroll",
 		label:
-			"Would you enroll in a program that can help you build a successful game development career for the long term even if it costs $1000+?",
+			"Would you consider investing $1,000+ in a program designed to help you build a long-term successful career in game development?",
 		column: "Would enroll at $1000+",
 		options: ["Of course", "I need to see this program first", "No I won't"],
 	},

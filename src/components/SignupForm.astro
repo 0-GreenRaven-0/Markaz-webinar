@@ -177,6 +177,12 @@ for (let r = 0; r < ROWS; r++) {
 		<p class="field__error" id="phone-error" data-error-for="phone"></p>
 	</div>
 
+	<div class="form__disclaimer">
+		<p class="form__disclaimer-text">
+			Your answers don't effect whether you can attend the free webinar or not
+		</p>
+	</div>
+
 	{/*
 		The qualifying questions, built from signupQuestions in config.ts.
 		They use SelectField rather than a native <select>, because the open list
@@ -746,6 +752,22 @@ for (let r = 0; r < ROWS; r++) {
 		display: grid;
 		grid-template-columns: minmax(6.25rem, 7.5rem) 1fr;
 		gap: var(--space-2xs);
+	}
+
+	/* A red rule marking off the contact fields above from the qualifying
+	   questions below, with a reassurance that those questions are not a
+	   screening step. */
+	.form__disclaimer {
+		border-block-start: 2px solid var(--color-danger);
+		padding-block-start: var(--space-xs);
+	}
+
+	.form__disclaimer-text {
+		margin: 0;
+		font-size: var(--text-xs);
+		font-weight: var(--weight-semibold);
+		color: var(--color-danger);
+		text-align: center;
 	}
 
 	/* --- Low-poly submit button --- */

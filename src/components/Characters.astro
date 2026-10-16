@@ -35,10 +35,10 @@ const placed = characters.map((character, i) => ({
 <section class="characters" id="discover">
 	<div class="container characters__inner">
 		<header class="characters__head">
-			<h2 class="characters__heading">What you're about to Discover</h2>
+			<h2 class="characters__heading">What you're about to Discover in the Webinar</h2>
 			<p class="characters__sub">
-				The one of a kind cohort in all of Lebanon which you'll NEVER find in any
-				university
+				A one of a kind game development cohort which you'll NEVER find in any
+				university or any other paid mentorships
 			</p>
 
 			{/*
@@ -156,11 +156,17 @@ const placed = characters.map((character, i) => ({
 	/* Bigger than the copy under it, and held inside the gutter rather than
 	   bleeding out to the edges like the other section headings — asked for
 	   directly, and it reads better wrapped over two lines than stretched
-	   across one. */
+	   across one. Centered and narrower than the rest of this left-aligned
+	   block, on purpose — asked for directly, to set it apart as its own
+	   standalone line rather than reading as the first line of the paragraphs
+	   under it. */
 	.characters__heading {
 		font-size: var(--text-xl);
 		text-transform: uppercase;
-		max-width: 30ch;
+		max-width: 26ch;
+		text-align: center;
+		justify-self: center;
+		padding-block-end: var(--space-xs);
 	}
 
 	.characters__sub {
