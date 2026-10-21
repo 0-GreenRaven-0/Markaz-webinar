@@ -17,9 +17,9 @@ export interface Hook {
 export const hooks: Hook[] = [
 	{
 		id: "A",
-		text: "Become a talented game developer & launch your 1st game on Steam",
+		text: "Develop your 1st game & launch it on Steam in just 6 months",
 	},
 ];
 
 export const subHeadline =
-	"Discover the most unique program in whole Lebanon that'll take you from ZERO to a talented & successful game developer";
+	"Join our FREE webinar to discover how Markaz Academy can take you from ZERO to becoming a successful game developer";

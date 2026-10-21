@@ -78,6 +78,10 @@ for (let i = 0; i < SEGMENTS; i++) {
 	<div class="container projects__inner">
 		<header class="projects__head">
 			<h2>Projects built by us and our students</h2>
+			<p class="projects__sub">
+				Every game below was built end-to-end by a student during the cohort — design,
+				art, code and release, not a demo reel.
+			</p>
 		</header>
 
 		<ul class="projects__grid" role="list">
@@ -200,6 +204,14 @@ for (let i = 0; i < SEGMENTS; i++) {
 	.projects__head h2 {
 		font-size: var(--text-3xl);
 		margin-inline: var(--bleed-wide);
+	}
+
+	.projects__sub {
+		margin-block-start: var(--space-xs);
+		font-size: var(--text-sm);
+		color: var(--color-text-muted);
+		max-width: var(--measure);
+		margin-inline: auto;
 	}
 
 	.projects__grid {

@@ -1,6 +1,6 @@
 ---
 import OutcomePage from "../layouts/OutcomePage.astro";
-import { site } from "../data/config";
+import { site, metaPixelId } from "../data/config";
 
 /**
  * Where the signup form sends people the moment their registration is saved.
@@ -9,6 +9,96 @@ import { site } from "../data/config";
  * the confirmation email is on its way, and to head off the most common reason
  * people think it never arrived.
  */
+
+/*
+	Meta Pixel calls, built as a string and written with set:html for the same
+	reason as BaseLayout.astro's pixelCode — see its comment. This page needs
+	the pixel id itself (not just the booleans the old version used) to
+	re-supply Advanced Matching right before firing Lead/Qualified_Lead — see
+	the long comment inside the script for why.
+*/
+const checkEmailPixelJs = `
+try {
+	var pixelId = "${metaPixelId}";
+
+	/*
+		Advanced Matching: a hashed email and phone, handed over by
+		SignupForm.astro via sessionStorage right after a successful submit
+		(see the comment there — it hashes with SHA-256 client-side, the raw
+		address never touches storage), plus the persistent external_id that
+		BaseLayout.astro generates once per browser and keeps in
+		localStorage — see pixelCode there. Re-calling fbq('init', ...) with
+		this data updates what every event fired AFTER this point on THIS
+		page is matched against. That is the documented way the Pixel JS SDK
+		accepts matching data that only becomes known partway through a
+		visit — it does not create a second pixel or a duplicate PageView.
+
+		This is the single biggest lever for Event Match Quality: the
+		browser-only signals every event already carries automatically (IP,
+		user agent, fbp/fbc) are a much weaker match than a hashed email or
+		phone, because those are what actually lets Meta connect the event to
+		a real person it already knows from somewhere else.
+	*/
+	var em = sessionStorage.getItem("markaz:em");
+	var ph = sessionStorage.getItem("markaz:ph");
+	sessionStorage.removeItem("markaz:em");
+	sessionStorage.removeItem("markaz:ph");
+	var eid = "";
+	try {
+		eid = window.localStorage.getItem("markaz:eid") || "";
+	} catch (e) {
+		/* private mode or blocked storage - external_id is left out */
+	}
+	if (pixelId && typeof window.fbq === "function" && (em || ph || eid)) {
+		var matchData = {};
+		if (em) matchData.em = em;
+		if (ph) matchData.ph = ph;
+		if (eid) matchData.external_id = eid;
+		window.fbq("init", pixelId, matchData);
+	}
+
+	/*
+		Lead: somebody completed the registration form. The standard event to
+		optimise ad delivery against — the first point at which a click became
+		a real registration on the sheet.
+
+		Reported here, not at the moment of submit, because the redirect to
+		this page would cancel a fbq() call made a moment earlier before it
+		could send.
+	*/
+	if (!sessionStorage.getItem("markaz:pixel:lead")) {
+		sessionStorage.setItem("markaz:pixel:lead", "1");
+		if (typeof window.fbq === "function") {
+			window.fbq("track", "Lead", { content_name: "Webinar registration" });
+		}
+	}
+
+	/*
+		Qualified_Lead: a custom event for the narrower group SignupForm.astro
+		marked as qualified — now from BOTH the interest/enroll answers (see
+		qualified-lead.ts) AND a basic bot/junk check made at submit time (an
+		obviously fake-looking phone number, or a suspiciously instant
+		submission — see the comment in SignupForm.astro). A lead that fails
+		either part still registers normally; it just is not reported to Meta
+		as a GOOD lead, so the algorithm is never taught that bot traffic or
+		junk answers are what a qualified lead looks like.
+
+		Read once from sessionStorage and removed, since it was only ever
+		meant for the one page load right after submitting.
+	*/
+	var qualified = sessionStorage.getItem("markaz:lead-qualified") === "1";
+	sessionStorage.removeItem("markaz:lead-qualified");
+	if (qualified && !sessionStorage.getItem("markaz:pixel:qualified-lead")) {
+		sessionStorage.setItem("markaz:pixel:qualified-lead", "1");
+		if (typeof window.fbq === "function") {
+			window.fbq("trackCustom", "Qualified_Lead", { content_name: "Webinar registration" });
+		}
+	}
+} catch (err) {
+	// Private mode, storage refused, or no pixel on this build. The page
+	// itself has nothing left to do after this, so there is nothing to protect.
+}
+`;
 ---
 
 <OutcomePage
@@ -24,55 +114,7 @@ import { site } from "../data/config";
 	<p class="outcome__tip">Can't find it? Check your Spam or Promotions folder.</p>
 </OutcomePage>
 
-<script is:inline>
-	/*
-		Meta Pixel calls made directly here, is:inline, with no import from a
-		shared module — the same pattern droparabia-landing uses everywhere.
-
-		A shared "pixel.ts" helper, imported from several pages, becomes its OWN
-		built file, and Astro named it literally pixel.<hash>.js. A request path
-		containing "pixel" is one of the most common ad-blocker filter targets
-		there is, by name alone, regardless of the domain serving it — and
-		proven here: deliberately blocking that one request made this page's
-		entire script fail to run, nothing just about tracking. is:inline has no
-		separate request to block in the first place.
-	*/
-	try {
-		/*
-			Lead: somebody completed the registration form. The standard event to
-			optimise ad delivery against — the first point at which a click became
-			a real registration on the sheet.
-
-			Reported here, not at the moment of submit, because the redirect to
-			this page would cancel a fbq() call made a moment earlier before it
-			could send.
-		*/
-		if (!sessionStorage.getItem("markaz:pixel:lead")) {
-			sessionStorage.setItem("markaz:pixel:lead", "1");
-			if (typeof window.fbq === "function") {
-				window.fbq("track", "Lead", { content_name: "Webinar registration" });
-			}
-		}
-
-		/*
-			Qualified_Lead: a custom event for the narrower group SignupForm.astro
-			marked as qualified from their interest/enroll answers (see
-			qualified-lead.ts). Read once from sessionStorage and removed, since it
-			was only ever meant for the one page load right after submitting.
-		*/
-		var qualified = sessionStorage.getItem("markaz:lead-qualified") === "1";
-		sessionStorage.removeItem("markaz:lead-qualified");
-		if (qualified && !sessionStorage.getItem("markaz:pixel:qualified-lead")) {
-			sessionStorage.setItem("markaz:pixel:qualified-lead", "1");
-			if (typeof window.fbq === "function") {
-				window.fbq("trackCustom", "Qualified_Lead", { content_name: "Webinar registration" });
-			}
-		}
-	} catch (err) {
-		// Private mode, storage refused, or no pixel on this build. The page
-		// itself has nothing left to do after this, so there is nothing to protect.
-	}
-</script>
+<script is:inline set:html={checkEmailPixelJs} />
 
 <style>
 	.outcome__title {

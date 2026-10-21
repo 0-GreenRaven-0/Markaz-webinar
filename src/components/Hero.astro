@@ -105,8 +105,12 @@ const hookCss = [
 	}
 
 	.hero__headline {
+		/* Rubik rather than the site-wide Francker heading font — asked for
+		   directly, for readability on the single most important line on the
+		   page. Every other heading still inherits Francker from global.css. */
+		font-family: var(--font-body);
 		font-size: var(--text-3xl);
-		font-weight: var(--weight-heading);
+		font-weight: var(--weight-bold);
 		/* Uppercased in CSS, not in hooks.ts, so the headlines stay readable to
 		   edit and screen readers still announce normal sentences. */
 		text-transform: uppercase;
@@ -152,7 +156,7 @@ const hookCss = [
 		}
 
 		.hero__sub {
-			font-size: var(--text-sm);
+			font-size: var(--text-xs);
 		}
 	}
 

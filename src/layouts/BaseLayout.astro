@@ -164,6 +164,15 @@ gtag('config', '${googleAdsId}');`;
 	code between <script> tags in the markup instead wraps it in {`...`}, which
 	Astro emits literally — the browser then evaluates a template string and
 	discards it, so the pixel silently never loads.
+
+	One addition beyond Meta's stock snippet: a persistent external_id, a
+	random id minted once per browser and kept in localStorage (NOT
+	sessionStorage — this is meant to outlive a single visit and still match
+	the same person on a later one). It is handed to fbq('init', ...) here so
+	every event from the very first PageView carries it, and read again by
+	check-email.astro to attach to Lead/Qualified_Lead alongside the hashed
+	email/phone collected at signup. This is part of Event Match Quality —
+	see the longer comment on that page for what EMQ is and why it matters.
 */
 const pixelCode = `!function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -173,7 +182,21 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '${metaPixelId}');
+var markazExternalId = (function () {
+	var KEY = "markaz:eid";
+	try {
+		var existing = window.localStorage.getItem(KEY);
+		if (existing) return existing;
+		var id = (window.crypto && window.crypto.randomUUID)
+			? window.crypto.randomUUID()
+			: (Date.now().toString(36) + Math.random().toString(36).slice(2));
+		window.localStorage.setItem(KEY, id);
+		return id;
+	} catch (e) {
+		return "";
+	}
+})();
+fbq('init', '${metaPixelId}', markazExternalId ? { external_id: markazExternalId } : {});
 fbq('track', 'PageView');`;
 ---
 

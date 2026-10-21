@@ -179,7 +179,7 @@ for (let r = 0; r < ROWS; r++) {
 
 	<div class="form__disclaimer">
 		<p class="form__disclaimer-text">
-			Your answers don't effect whether you can attend the free webinar or not
+			Your answers won't affect your ability to attend the free webinar.
 		</p>
 	</div>
 
@@ -263,6 +263,61 @@ for (let r = 0; r < ROWS; r++) {
 
 	const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
+	/*
+		Decides whether a signup's Qualified_Lead pixel event should actually
+		fire — never whether the signup itself is accepted. The registration
+		always saves exactly as before; this only stops an obviously fake or
+		bot-like submission from being reported to Meta as a GOOD lead, which
+		is what teaches the ad algorithm to go find more of the same junk.
+
+		The email side of this is already covered more thoroughly than
+		anything client-side could check: every submission already passes
+		through checkEmail() on the server (src/lib/email-check.ts) — real
+		syntax, not a known disposable provider, and a live DNS lookup
+		confirming the domain can receive mail — before the row is even
+		written. A submission that reaches this point already cleared a
+		stricter bar than a plain regex, so there is nothing to repeat here.
+
+		Not implemented: blocking common personal providers (gmail, yahoo,
+		hotmail). That is a B2B heuristic — it assumes a "good" lead uses a
+		work email. This is a free consumer webinar for individuals in
+		Lebanon; gmail is what a real, serious lead looks like here, not a
+		red flag. Applying it would have disqualified the majority of
+		genuinely good signups.
+	*/
+	const MIN_TIME_ON_PAGE_MS = 8_000;
+	const MIN_FORM_FILL_MS = 3_000;
+
+	/** "0000000000", "1111111111" — every digit the same. */
+	const isRepeatedDigit = (digits: string) => /^(\d)\1+$/.test(digits);
+
+	/** "123456...", "987654..." — a simple run up or down the keypad. */
+	const isSequentialDigits = (digits: string) => {
+		if (digits.length < 4) return false;
+		let ascending = true;
+		let descending = true;
+		for (let i = 1; i < digits.length; i++) {
+			const diff = digits.charCodeAt(i) - digits.charCodeAt(i - 1);
+			if (diff !== 1) ascending = false;
+			if (diff !== -1) descending = false;
+		}
+		return ascending || descending;
+	};
+
+	/* 10 digits is a stricter floor than the field's own 6-15 validation (that
+	   range stays permissive on purpose, for the real short-number formats a
+	   genuine visitor might have) — this is only about whether the number
+	   looks real enough to call the lead qualified, not whether to accept it. */
+	const looksLikeJunkPhone = (digits: string) =>
+		digits.length < 10 || isRepeatedDigit(digits) || isSequentialDigits(digits);
+
+	/** Lowercase hex SHA-256, what Meta's Advanced Matching expects for em/ph. */
+	const sha256Hex = async (input: string): Promise<string> => {
+		const bytes = new TextEncoder().encode(input);
+		const digest = await crypto.subtle.digest("SHA-256", bytes);
+		return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+	};
+
 	/* The dropdowns are built from the same list as the markup, so adding a
 	   question in config.ts makes it required and submitted without touching
 	   anything here. */
@@ -325,6 +380,10 @@ for (let r = 0; r < ROWS; r++) {
 		// wipe out the SVG facets behind it.
 		const labelEl = form.querySelector<HTMLElement>("[data-submit-label]");
 		const combo = form.querySelector<HTMLElement>("[data-combo]");
+
+		// Set the moment the FormStart pixel event fires, below — the gap
+		// between this and submit is the bot-check's "form fill time".
+		let formStartedAt: number | null = null;
 
 		const setError = (name: string, message: string) => {
 			const field = form.querySelector<HTMLElement>(`[name="${name}"]`);
@@ -465,7 +524,11 @@ for (let r = 0; r < ROWS; r++) {
 		*/
 		form.addEventListener(
 			"input",
-			() =>
+			() => {
+				// Independent of fireOnce below — that only dedupes the pixel call
+				// across a session, but the fill-time clock needs to start on THIS
+				// page load even on a second visit in the same session.
+				formStartedAt = Date.now();
 				fireOnce("form-start", () => {
 					try {
 						(window as unknown as { fbq?: (...args: unknown[]) => void }).fbq?.(
@@ -475,7 +538,8 @@ for (let r = 0; r < ROWS; r++) {
 					} catch {
 						// An ad blocker, or no pixel on this build. Never block the form.
 					}
-				}),
+				});
+			},
 			{ once: true },
 		);
 
@@ -579,21 +643,59 @@ for (let r = 0; r < ROWS; r++) {
 				}
 
 				/*
-					Whether this signup is a Qualified_Lead, decided from the
-					interest/enroll answers (see qualified-lead.ts). Handed to
-					/check-email through sessionStorage rather than the URL, since a
-					fbq("track", ...) call made right before navigation is often
-					cancelled by the navigation itself before it can send — so the
-					event is fired from the NEXT page instead, once it has loaded.
+					Whether this signup is a Qualified_Lead, decided from BOTH the
+					interest/enroll answers (see qualified-lead.ts) AND a basic
+					bot/junk check on top — an obviously fake-looking phone number,
+					or a suspiciously instant submission. Neither check touches
+					whether the registration is accepted; a "junk-looking" signup
+					still saves exactly as before. This only decides whether it gets
+					reported to Meta as a GOOD lead, so the algorithm is never taught
+					that bot traffic or junk answers are what a qualified lead looks
+					like. See the long comment above MIN_TIME_ON_PAGE_MS for the full
+					reasoning, including why email is not re-checked here.
+
+					Handed to /check-email through sessionStorage rather than the
+					URL, since a fbq("track", ...) call made right before navigation
+					is often cancelled by the navigation itself before it can send —
+					so the event is fired from the NEXT page instead, once it has
+					loaded.
 				*/
+				const timeOnPageMs = Date.now() - performance.timeOrigin;
+				const fillMs = formStartedAt === null ? 0 : Date.now() - formStartedAt;
+				const phoneDigits = `${dial}${phone}`.replace(/\D/g, "");
+				const looksBotlike =
+					timeOnPageMs < MIN_TIME_ON_PAGE_MS ||
+					fillMs < MIN_FORM_FILL_MS ||
+					looksLikeJunkPhone(phoneDigits);
+				const qualified =
+					isQualifiedLead(payload.interest ?? "", payload.enroll ?? "") && !looksBotlike;
+
 				try {
-					sessionStorage.setItem(
-						"markaz:lead-qualified",
-						isQualifiedLead(payload.interest ?? "", payload.enroll ?? "") ? "1" : "0",
-					);
+					sessionStorage.setItem("markaz:lead-qualified", qualified ? "1" : "0");
 				} catch {
 					// Private mode, or storage refused. Lead still fires on the next
 					// page; only the qualified split is lost.
+				}
+
+				/*
+					Advanced Matching for check-email.astro: a hashed email and phone,
+					computed here (client-side SHA-256, never sent or stored in the
+					clear) and handed over the same way as the qualified flag above.
+					Sent for every successful signup, not just qualified ones — this
+					is about improving Event Match Quality for Lead too, not only
+					Qualified_Lead. See the comment on checkEmailPixelJs in
+					check-email.astro for what this unlocks.
+				*/
+				try {
+					const emailHash = await sha256Hex(payload.email.trim().toLowerCase());
+					sessionStorage.setItem("markaz:em", emailHash);
+					if (phoneDigits) {
+						sessionStorage.setItem("markaz:ph", await sha256Hex(phoneDigits));
+					}
+				} catch {
+					// No Web Crypto, private mode, or storage refused — Advanced
+					// Matching is skipped for this signup; the registration itself,
+					// and the Lead/Qualified_Lead events, are unaffected.
 				}
 
 				/*
