@@ -45,8 +45,26 @@ const {
 	   referral) happened to be the first page view counted this session.
 	5. "Direct" if none of the above apply.
 
+	Alongside the source, this also picks up the campaign and ad/creative name
+	— but ONLY when the visit looks like paid traffic, decided by `isPaid`
+	below: a Google or Meta click id, or a utm_medium that names a paid
+	channel (cpc, ppc, paid, paid-social, display, ads). Campaign is read from
+	utm_campaign; the ad/creative name from utm_content, falling back to
+	utm_term for a Google Ads keyword campaign that has no utm_content. Both
+	stay empty for organic, referral or direct visits — there is no campaign
+	or ad to name for those, and leaving the columns blank is clearer in the
+	sheet than guessing.
+
+	Advertisers fill utm_campaign/utm_content themselves, in the ad
+	platform's URL/tracking template — Meta Ads Manager and Google Ads both
+	support inserting the real campaign and ad name automatically there
+	(e.g. {{campaign.name}}/{{ad.name}} in Meta, {_campaignname}/{_adgroupname}
+	as a custom parameter in Google Ads). Nothing on this site can set that up
+	on the ad platform's side — this only reads what the link already carries.
+
 	Read back by SignupForm.astro at submit time and sent to /api/subscribe as
-	traffic_source, which writes it into the sheet's last column.
+	traffic_source, campaign_name and ad_name, which write into the sheet's
+	last three columns.
 */
 const trafficSourceJs = `(function () {
 	var KEY = "markaz:traffic_source";
@@ -58,10 +76,17 @@ const trafficSourceJs = `(function () {
 	var params = new URLSearchParams(window.location.search);
 	var source = "";
 	var utmSource = params.get("utm_source");
+	var utmMedium = params.get("utm_medium");
+	var hasClickId = Boolean(
+		params.get("gclid") || params.get("gbraid") || params.get("wbraid") || params.get("fbclid"),
+	);
+	var PAID_MEDIUMS = ["cpc", "ppc", "paid", "paid-social", "paidsocial", "display", "ad", "ads"];
+	var isPaid =
+		hasClickId || (utmMedium ? PAID_MEDIUMS.indexOf(utmMedium.trim().toLowerCase()) !== -1 : false);
+
 	if (utmSource) {
 		source = utmSource.trim().toLowerCase();
-		var medium = params.get("utm_medium");
-		if (medium) source += " / " + medium.trim().toLowerCase();
+		if (utmMedium) source += " / " + utmMedium.trim().toLowerCase();
 	} else if (params.get("gclid") || params.get("gbraid") || params.get("wbraid")) {
 		source = "Google Ads";
 	} else if (params.get("fbclid")) {
@@ -77,10 +102,16 @@ const trafficSourceJs = `(function () {
 	} else {
 		source = "Direct";
 	}
+
+	var campaign = isPaid ? (params.get("utm_campaign") || "").trim() : "";
+	var ad = isPaid ? (params.get("utm_content") || params.get("utm_term") || "").trim() : "";
+
 	try {
 		window.sessionStorage.setItem(KEY, source);
+		window.sessionStorage.setItem("markaz:campaign_name", campaign);
+		window.sessionStorage.setItem("markaz:ad_name", ad);
 	} catch (e) {
-		/* private mode or blocked storage - traffic_source submits empty */
+		/* private mode or blocked storage - these submit empty */
 	}
 })();`;
 

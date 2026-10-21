@@ -40,6 +40,8 @@ const SHEET_HEADERS = [
 	"Status",
 	"Date",
 	"Traffic Source",
+	"Campaign Name",
+	"Ad Name",
 ];
 
 /** Every signup lands as Unconfirmed; the column is yours to change by hand. */
@@ -112,6 +114,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 		DEFAULT_STATUS,
 		stamp,
 		str("traffic_source"),
+		str("campaign_name"),
+		str("ad_name"),
 	];
 
 	try {

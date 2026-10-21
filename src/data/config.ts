@@ -4,14 +4,14 @@
  */
 
 /** Shown in the scrolling bar at the top of the page. Edit this when the date changes. */
-export const webinarDate = "FRIDAY 30 OCTOBER — 7PM";
+export const webinarDate = "SATURDAY 31 OCTOBER — 7PM";
 
 /**
  * When the webinar actually starts, as a real timestamp — this drives the
  * countdown. The offset is Lebanon time (+02:00 once daylight saving ends in
  * late October). Keep it in step with webinarDate above.
  */
-export const webinarAt = "2026-10-30T19:00:00+02:00";
+export const webinarAt = "2026-10-31T19:00:00+02:00";
 
 /**
  * Total seats on offer — the fixed number on the right of the counter's "/".
