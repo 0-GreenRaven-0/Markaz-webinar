@@ -130,6 +130,22 @@ export async function countSheetRows(sheetId: string, token: string): Promise<nu
  * number as a number and eats the leading zero — "03317172" becomes 3317172 —
  * and reads a leading "+" as the start of a formula. RAW stores every cell
  * exactly as sent.
+ *
+ * Writes to an EXPLICIT row number rather than Sheets' own values.append
+ * endpoint. append asks Sheets to "find a table" inside an open-ended range
+ * (e.g. A:J) and write below it — undocumented, fuzzy heuristics, and it
+ * broke badly in production: a change in column count (removing the Ad Name
+ * column) landed new signups 1,000 rows down the sheet with every field
+ * shifted sideways, because Sheets' table-detection got confused by the
+ * mismatch. Finding the next row ourselves and writing to a bounded range
+ * (A{row}:J{row}) removes that guesswork entirely — the only thing Sheets
+ * is asked to do is write exactly the cells given, nothing more.
+ *
+ * The small cost: two near-simultaneous submissions could both read the same
+ * "next row" and the second write would land on the first. Acceptable here —
+ * this form gets a handful of signups an hour, not a burst of concurrent
+ * ones — and far safer than the heuristic it replaces, which has no bound on
+ * how wrong it can go.
  */
 export async function appendToSheet(
 	sheetId: string,
@@ -153,16 +169,29 @@ export async function appendToSheet(
 		});
 	}
 
+	// The true last filled row in column A, not just how many values came
+	// back — the API silently drops trailing blank rows from a values.get
+	// response, but never drops an interior blank, so this stays correct
+	// even if a gap is ever left in the middle of the sheet.
+	const colA = await fetchWithTimeout(`${base}/A:A?majorDimension=COLUMNS`, { headers: auth });
+	const colAData = (await colA.json()) as { values?: string[][] };
+	const colAValues = colAData.values?.[0] ?? [];
+	let lastFilledIndex = 0; // 0-indexed; row 1 (the header) counts as filled.
+	for (let i = 0; i < colAValues.length; i++) {
+		if ((colAValues[i] ?? "").trim() !== "") lastFilledIndex = i;
+	}
+	const nextRow = lastFilledIndex + 2; // 0-indexed -> 1-indexed, then +1 for the next row.
+
 	const res = await fetchWithTimeout(
-		`${base}/A:${lastCol}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+		`${base}/A${nextRow}:${lastCol}${nextRow}?valueInputOption=RAW`,
 		{
-			method: "POST",
+			method: "PUT",
 			headers: auth,
 			body: JSON.stringify({ values: [row] }),
 		},
 	);
 
 	if (!res.ok) {
-		throw new Error(`Sheets append failed: ${res.status} ${await res.text()}`);
+		throw new Error(`Sheets write failed: ${res.status} ${await res.text()}`);
 	}
 }

@@ -176,10 +176,14 @@ const placed = characters.map((character, i) => ({
 		max-width: var(--measure);
 	}
 
-	/* The line that hands over to the six Divisions below it. */
+	/* The line that hands over to the six Divisions below it — styled as a
+	   heading in its own right (uppercase, like every other section heading on
+	   the page) rather than reading as another line of the intro paragraphs
+	   above it. */
 	.characters__lead-in {
 		margin-block-start: var(--space-md);
-		font-size: var(--text-base);
+		font-size: var(--text-lg);
+		text-transform: uppercase;
 		max-width: var(--measure-wide);
 		color: var(--color-text);
 	}

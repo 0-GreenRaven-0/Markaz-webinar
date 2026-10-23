@@ -1,6 +1,6 @@
 ---
 import "../styles/global.css";
-import { metaPixelId, gtmContainerId, gaMeasurementId, googleAdsId } from "../data/config";
+import { metaPixelId, gtmContainerId, gaMeasurementId, googleAdsId, adIdLabels } from "../data/config";
 
 interface Props {
 	/** Shown in the browser tab and in search results. */
@@ -45,28 +45,37 @@ const {
 	   referral) happened to be the first page view counted this session.
 	5. "Direct" if none of the above apply.
 
-	Alongside the source, this also picks up the campaign and ad/creative name
-	— but ONLY when the visit looks like paid traffic, decided by `isPaid`
-	below: a Google or Meta click id, or a utm_medium that names a paid
-	channel (cpc, ppc, paid, paid-social, display, ads). Campaign is read from
-	utm_campaign; the ad/creative name from utm_content, falling back to
-	utm_term for a Google Ads keyword campaign that has no utm_content. Both
-	stay empty for organic, referral or direct visits — there is no campaign
-	or ad to name for those, and leaving the columns blank is clearer in the
-	sheet than guessing.
+	Alongside the source, this also picks up the campaign name — but ONLY when
+	the visit looks like paid traffic, decided by `isPaid` below: a Google or
+	Meta click id, or a utm_medium that names a paid channel (cpc, ppc, paid,
+	paid-social, display, ads). Read from utm_campaign, and stays empty for
+	organic, referral or direct visits — there is no campaign to name for
+	those, and leaving the column blank is clearer in the sheet than guessing.
 
-	Advertisers fill utm_campaign/utm_content themselves, in the ad
-	platform's URL/tracking template — Meta Ads Manager and Google Ads both
-	support inserting the real campaign and ad name automatically there
-	(e.g. {{campaign.name}}/{{ad.name}} in Meta, {_campaignname}/{_adgroupname}
-	as a custom parameter in Google Ads). Nothing on this site can set that up
-	on the ad platform's side — this only reads what the link already carries.
+	Advertisers fill utm_campaign themselves, in the ad platform's URL/
+	tracking template — Meta Ads Manager and Google Ads both support
+	inserting the real campaign name automatically there (e.g. {{campaign.name}}
+	in Meta, {_campaignname} as a custom parameter in Google Ads). Nothing on
+	this site can set that up on the ad platform's side — this only reads what
+	the link already carries.
+
+	One more override sits on top of that: a handful of specific ads are known
+	by id to target a particular audience (e.g. a Computer Science student
+	audience) rather than by a human-readable campaign name — see the comment
+	on adIdLabels in config.ts for why. `ad` below is read the same way the
+	old Ad Name column was (utm_content, falling back to utm_term for a Google
+	Ads keyword campaign with no utm_content) but is used only to check against
+	AD_ID_LABELS, never stored — when it matches one of those known ids, the
+	campaign name recorded is that label instead of whatever utm_campaign
+	said, so the sheet reads "Computer Science" rather than a meaningless
+	18-digit id.
 
 	Read back by SignupForm.astro at submit time and sent to /api/subscribe as
-	traffic_source, campaign_name and ad_name, which write into the sheet's
-	last three columns.
+	traffic_source and campaign_name, which write into the sheet's last two
+	columns.
 */
 const trafficSourceJs = `(function () {
+	var AD_ID_LABELS = ${JSON.stringify(adIdLabels)};
 	var KEY = "markaz:traffic_source";
 	try {
 		if (window.sessionStorage.getItem(KEY)) return;
@@ -105,11 +114,13 @@ const trafficSourceJs = `(function () {
 
 	var campaign = isPaid ? (params.get("utm_campaign") || "").trim() : "";
 	var ad = isPaid ? (params.get("utm_content") || params.get("utm_term") || "").trim() : "";
+	if (isPaid && ad && AD_ID_LABELS[ad]) {
+		campaign = AD_ID_LABELS[ad];
+	}
 
 	try {
 		window.sessionStorage.setItem(KEY, source);
 		window.sessionStorage.setItem("markaz:campaign_name", campaign);
-		window.sessionStorage.setItem("markaz:ad_name", ad);
 	} catch (e) {
 		/* private mode or blocked storage - these submit empty */
 	}

@@ -85,6 +85,28 @@ export const site = {
 };
 
 /**
+ * Labels specific paid ads by id, for leads whose ad is known to target a
+ * particular audience — e.g. a Facebook ad aimed at Computer Science
+ * students. The ad id itself (not a name) is what Meta puts in the link when
+ * the ad's tracking template uses {{ad.id}} instead of {{ad.name}}, so
+ * without this a raw 18-digit number would otherwise land in the sheet's
+ * Campaign Name column, meaningless on its own.
+ *
+ * Read by trafficSourceJs in BaseLayout.astro: when a visitor arrives with
+ * utm_content (or utm_term) matching a key here, the sheet's Campaign Name
+ * column is set to this label instead of whatever utm_campaign said — the
+ * Ad Name column still gets the raw id, so the specific ad is never lost.
+ *
+ * Add a new ad id here whenever a new ad needs labelling this way.
+ */
+export const adIdLabels: Record<string, string> = {
+	"120250710897150692": "Computer Science",
+	"120250710897140692": "Computer Science",
+	"120250684393760692": "Gamers",
+	"120250684447810692": "Gamers",
+};
+
+/**
  * The qualifying dropdowns on the signup form, in the order they appear.
  *
  * Each one becomes a required dropdown and its own column on the sheet, so

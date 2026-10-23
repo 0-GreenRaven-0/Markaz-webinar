@@ -563,15 +563,13 @@ for (let r = 0; r < ROWS; r++) {
 
 			// Set once per session by BaseLayout.astro on first landing — see the
 			// comment on trafficSourceJs there. Empty if storage was blocked.
-			// campaignName/adName stay empty unless that first landing looked like
-			// paid traffic — see isPaid in the same script.
+			// campaignName stays empty unless that first landing looked like paid
+			// traffic — see isPaid in the same script.
 			let trafficSource = "";
 			let campaignName = "";
-			let adName = "";
 			try {
 				trafficSource = sessionStorage.getItem("markaz:traffic_source") ?? "";
 				campaignName = sessionStorage.getItem("markaz:campaign_name") ?? "";
-				adName = sessionStorage.getItem("markaz:ad_name") ?? "";
 			} catch {
 				// Private mode, or storage refused.
 			}
@@ -592,7 +590,6 @@ for (let r = 0; r < ROWS; r++) {
 				hook_variant: document.documentElement.dataset.hook ?? "",
 				traffic_source: trafficSource,
 				campaign_name: campaignName,
-				ad_name: adName,
 				submitted_at: new Date().toISOString(),
 			};
 
